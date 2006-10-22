@@ -37,7 +37,10 @@ define('APP_NAME', 'Crackup');
 define('APP_VERSION', '0.1-svn');
 define('APP_COPYRIGHT', 'Copyright (c) 2006 Ryan Grove (ryan@wonko.com). All rights reserved.');
 define('APP_URL', 'http://wonko.com/software/crackup');
-define('GPG', 'echo :passphrase | gpg --batch --quiet --no-tty --no-secmem-warning --cipher-algo aes256 --compress-algo bzip2 --passphrase-fd 0 --output :output_file --symmetric :input_file');
+
+define('GPG_DECRYPT', 'echo :passphrase | gpg --batch --quiet --no-tty --no-secmem-warning --cipher-algo aes256 --compress-algo bzip2 --passphrase-fd 0 --output :output_file :input_file');
+define('GPG_ENCRYPT', 'echo :passphrase | gpg --batch --quiet --no-tty --no-secmem-warning --cipher-algo aes256 --compress-algo bzip2 --passphrase-fd 0 --output :output_file --symmetric :input_file');
+
 define('TEMP_DIR', (isset($_ENV['TMP']) ? rtrim($_ENV['TMP'], '/') : '.'));
 
 // -- Command-line arguments ---------------------------------------------------
