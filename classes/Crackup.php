@@ -9,11 +9,11 @@
  */
 class Crackup {
   // -- Public Static Variables ------------------------------------------------
-  public static $dest        = '';
-  public static $destFiles   = array();
+  public static $remote      = '';
+  public static $remoteFiles = array();
   public static $passphrase  = '';
-  public static $source      = array();
-  public static $sourceFiles = array();
+  public static $local       = array();
+  public static $localFiles  = array();
   
   // -- Public Static Methods --------------------------------------------------
   
@@ -70,15 +70,70 @@ class Crackup {
     exit(1);
   }
   
+  public static function findRemoteFile($filename) {
+    $filename = rtrim($filename, '/');
+    
+    foreach(Crackup::$remoteFiles as $file) {
+      if ($file->getName() == $filename) {
+        return $file;
+      }
+      
+      if ($file instanceof CrackupDirectory) {
+        if ($child = $file->find($filename)) {
+          return $child;
+        }
+      }
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Gets an array of CrackupFileSystemObject objects representing the files and
+   * directories on the local system in the locations specified by the array of
+   * file patterns in Crackup::$local.
+   *
+   * @return Array
+   * @see getRemoteFiles()
+   */
+  public static function getLocalFiles() {
+    $localFiles = array();
+    
+    foreach(Crackup::$local as $pattern) {
+      if (false === ($filenames = glob($pattern, GLOB_NOSORT))) {
+        continue;
+      }
+      
+      foreach($filenames as $filename) {
+        $filename = rtrim($filename, '/');
+        
+        if (isset($localFiles[$filename])) {
+          continue;
+        }
+        
+        if (is_dir($filename)) {
+          Crackup::debug($filename);
+          $localFiles[$filename] = new CrackupDirectory($filename);
+        }
+        elseif (is_file($filename)) {
+          Crackup::debug($filename);
+          $localFiles[$filename] = new CrackupFile($filename);
+        }
+      }
+    }
+    
+    return $localFiles;
+  }
+  
   /**
    * Returns an array of CrackupFileSystemObject objects present at the remote
    * location.
    *
    * @return Array
-   * @see getSourceFiles()
+   * @see getLocalFiles()
    */
-  public static function getDestFiles() {
-    if (!($fileList = @file_get_contents(self::$dest.'/.crackup_index'))) {
+  public static function getRemoteFiles() {
+    if (!($fileList = @file_get_contents(self::$remote.'/.crackup_index'))) {
       return array();
     }
     
@@ -86,8 +141,8 @@ class Crackup {
       $fileList = @unserialize($fileList);
     }
     else {
-      $tmpName1 = TEMP_DIR.'/'.uniqid('.crackup_temp');
-      $tmpName2 = TEMP_DIR.'/'.uniqid('.crackup_temp');
+      $tmpName1 = self::getTempFile();
+      $tmpName2 = self::getTempFile();
       
       if (!@file_put_contents($tmpName1, $fileList)) {
         @unlink($tmpName1);
@@ -115,27 +170,27 @@ class Crackup {
    * directories that exist on the destination but no longer exist on the local
    * machine.
    *
-   * @param Array $sourceFiles array of local CrackupFileSystemObject objects
-   * @param Array $destFiles array of remote CrackupFileSystemObject objects
+   * @param Array $localFiles array of local CrackupFileSystemObject objects
+   * @param Array $remoteFiles array of remote CrackupFileSystemObject objects
    * @return Array removed CrackupFileSystemObject objects
    * @see getUpdatedFiles
    */
-  public static function getRemovedFiles($sourceFiles, $destFiles) {
+  public static function getRemovedFiles($localFiles, $remoteFiles) {
     $removed = array();
     
-    foreach($destFiles as $name => $destFile) {
-      if (!isset($sourceFiles[$name])) {
-        $removed[] = $destFile;
+    foreach($remoteFiles as $name => $remoteFile) {
+      if (!isset($localFiles[$name])) {
+        $removed[] = $remoteFile;
         continue;
       }
       
-      $sourceFile = $sourceFiles[$name];
+      $localFile = $localFiles[$name];
       
-      if (($destFile instanceof CrackupDirectory) && 
-          ($sourceFile instanceof CrackupDirectory)) {
+      if (($remoteFile instanceof CrackupDirectory) && 
+          ($localFile instanceof CrackupDirectory)) {
             
         $removed = array_merge($removed, self::getRemovedFiles(
-            $sourceFile->getChildren(), $destFile->getChildren()));
+            $localFile->getChildren(), $remoteFile->getChildren()));
       }
     }
     
@@ -143,40 +198,10 @@ class Crackup {
   }
   
   /**
-   * Gets an array of CrackupFileSystemObject objects representing the files and
-   * directories on the local system in the locations specified by the array of
-   * file patterns in Crackup::$source.
-   *
-   * @return Array
-   * @see getDestFiles()
+   * Generates a unique temporary filename.
    */
-  public static function getSourceFiles() {
-    $sourceFiles = array();
-    
-    foreach(Crackup::$source as $pattern) {
-      if (false === ($filenames = glob($pattern, GLOB_NOSORT))) {
-        continue;
-      }
-      
-      foreach($filenames as $filename) {
-        $filename = rtrim($filename, '/');
-        
-        if (isset($sourceFiles[$filename])) {
-          continue;
-        }
-        
-        if (is_dir($filename)) {
-          Crackup::debug($filename);
-          $sourceFiles[$filename] = new CrackupDirectory($filename);
-        }
-        elseif (is_file($filename)) {
-          Crackup::debug($filename);
-          $sourceFiles[$filename] = new CrackupFile($filename);
-        }
-      }
-    }
-    
-    return $sourceFiles;
+  public static function getTempFile() {
+    return TEMP_DIR.'/'.uniqid('.crackup_temp');
   }
   
   /**
@@ -184,33 +209,33 @@ class Crackup {
    * directories that are new or have been modified on the local machine and
    * need to be updated at the destination location.
    *
-   * @param Array $sourceFiles array of local CrackupFileSystemObject objects
-   * @param Array $destFiles array of remote CrackupFileSystemObject objects
+   * @param Array $localFiles array of local CrackupFileSystemObject objects
+   * @param Array $remoteFiles array of remote CrackupFileSystemObject objects
    * @return Array updated CrackupFileSystemObject objects
    * @see getRemovedFiles()
    */
-  public static function getUpdatedFiles($sourceFiles, $destFiles) {
+  public static function getUpdatedFiles($localFiles, $remoteFiles) {
     $updated = array();
     
-    foreach($sourceFiles as $name => $sourceFile) {
-      if (!isset($destFiles[$name])) {
-        $updated[] = $sourceFile;
+    foreach($localFiles as $name => $localFile) {
+      if (!isset($remoteFiles[$name])) {
+        $updated[] = $localFile;
         continue;
       }
       
-      $destFile = $destFiles[$name];
+      $remoteFile = $remoteFiles[$name];
       
-      if (($sourceFile instanceof CrackupDirectory) &&
-          ($destFile instanceof CrackupDirectory)) {
+      if (($localFile instanceof CrackupDirectory) &&
+          ($remoteFile instanceof CrackupDirectory)) {
 
         $updated = array_merge($updated, self::getUpdatedFiles(
-            $sourceFile->getChildren(), $destFile->getChildren()));
+            $localFile->getChildren(), $remoteFile->getChildren()));
       }
-      elseif (($sourceFile instanceof CrackupFile) &&
-          ($destFile instanceof CrackupFile)) {
+      elseif (($localFile instanceof CrackupFile) &&
+          ($remoteFile instanceof CrackupFile)) {
 
-        if ($sourceFile->getFileHash() != $destFile->getFileHash()) {
-          $updated[] = $sourceFile;
+        if ($localFile->getFileHash() != $remoteFile->getFileHash()) {
+          $updated[] = $localFile;
         }
       }
     }
@@ -232,7 +257,7 @@ class Crackup {
       elseif ($file instanceof CrackupFile) {
         Crackup::debug($file->getName());
         
-        if (false === @unlink(self::$dest.'/crackup_'.$file->getNameHash())) {
+        if (false === @unlink(self::$remote.'/crackup_'.$file->getNameHash())) {
           Crackup::error('Unable to remove "'.$file->getName().'" from '.
               'destination');
         }
@@ -254,7 +279,7 @@ class Crackup {
       elseif ($file instanceof CrackupFile) {
         Crackup::debug($file->getName());
         
-        $remoteFile = self::$dest.'/crackup_'.$file->getNameHash();
+        $remoteFile = self::$remote.'/crackup_'.$file->getNameHash();
         
         // We have to manually delete the remote file if it already exists,
         // since some stream protocols don't allow overwriting by default.
@@ -273,7 +298,7 @@ class Crackup {
         }
         else {
           // Create a temporary local file and compress/encrypt it with GPG.
-          $tmpName = TEMP_DIR.'/'.uniqid('.crackup_temp');
+          $tmpName = self::getTempFile();
 
           self::encryptFile($file->getName(), $tmpName);          
           
@@ -296,17 +321,17 @@ class Crackup {
    */
   public static function updateRemoteIndex() {
     if (defined('CRACKUP_NOGPG')) {
-      $index = serialize(Crackup::$sourceFiles);
+      $index = serialize(Crackup::$localFiles);
       
-      if (!@file_put_contents(Crackup::$dest.'/.crackup_index', $index)) {
+      if (!@file_put_contents(Crackup::$remote.'/.crackup_index', $index)) {
         Crackup::error('Unable to update index at destination');
       }
     }
     else {
-      $tmpName1 = TEMP_DIR.'/'.uniqid('.crackup_temp');
-      $tmpName2 = TEMP_DIR.'/'.uniqid('.crackup_temp');
+      $tmpName1 = self::getTempFile();
+      $tmpName2 = self::getTempFile();
       
-      if (!@file_put_contents($tmpName1, serialize(Crackup::$sourceFiles))) {
+      if (!@file_put_contents($tmpName1, serialize(Crackup::$localFiles))) {
         @unlink($tmpName1);
         @unlink($tmpName2);
         Crackup::error('Unable to write to temporary directory');
@@ -314,7 +339,7 @@ class Crackup {
       
       self::encryptFile($tmpName1, $tmpName2);
       
-      $remoteFile = Crackup::$dest.'/.crackup_index';
+      $remoteFile = Crackup::$remote.'/.crackup_index';
       
       if (@file_exists($remoteFile)) {
         @unlink($remoteFile);

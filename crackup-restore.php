@@ -1,18 +1,7 @@
-#!/usr/local/bin/php
 <?php
 /**
- * Crackup (Crappy Remote Backup) is a pretty simple, pretty secure remote
- * backup solution for folks who want to keep their data securely backed up but
- * aren't particularly concerned about bandwidth usage.
+ * Restores files from Crackup backups.
  * 
- * Crackup is ideal for backing up lots of small files, but somewhat less ideal
- * for backing up large files, since any change to a file means the entire file
- * must be transferred. If you need something bandwidth-efficient, try Duplicity
- * or Brackup.
- * 
- * Backups are compressed and encrypted via GPG and can be transferred to the
- * remote location over a variety of protocols, including FTP, FTPS, and SFTP.
- *
  * Requires PHP 5.1.6+ and GPG 1.4.2+
  * 
  * Requires the following PEAR packages:
@@ -33,7 +22,7 @@ require_once 'classes/CrackupFile.php';
 
 // -- Constants ----------------------------------------------------------------
 
-define('APP_NAME', 'Crackup');
+define('APP_NAME', 'Crackup Restore');
 define('APP_VERSION', '0.1-svn');
 define('APP_COPYRIGHT', 'Copyright (c) 2006 Ryan Grove (ryan@wonko.com). All rights reserved.');
 define('APP_URL', 'http://wonko.com/software/crackup');
@@ -45,11 +34,27 @@ define('TEMP_DIR', (isset($_ENV['TMP']) ? rtrim($_ENV['TMP'], '/') : '.'));
 
 // -- Command-line arguments ---------------------------------------------------
 $argConfig = array(
+  'all' => array(
+    'short' => 'a',
+    'max'   => 0,
+    'min'   => 0,
+    'desc'  => 'Restore all files'
+  ),
+
   'from' => array(
     'short' => 'f',
+    'max'   => 1,
+    'min'   => 1,
+    'desc'  => 'Backup URL to restore from (e.g., '.
+        'ftp://user:pass@server.com/path)'
+  ),
+  
+  'only|just' => array(
+    'short' => 'o|j',
     'max'   => -1,
     'min'   => 1,
-    'desc'  => 'Local files/directories to back up (wildcards are allowed)'
+    'desc'  => 'Restore only the specified files and directories (and all '.
+        'contents, in the case of directories)'
   ),
   
   'passphrase|pass|password' => array(
@@ -65,7 +70,7 @@ $argConfig = array(
     'short' => 't',
     'max'   => 1,
     'min'   => 1,
-    'desc'  => 'Destination URL (e.g., ftp://user:pass@server.com/path)'
+    'desc'  => 'Destination root directory for the restored files'
   ),
 
   'verbose' => array(
@@ -126,7 +131,9 @@ if ($args->isDefined('verbose')) {
   define('VERBOSE', true);
 }
 
-if (!$args->isDefined('from') || !$args->isDefined('to')) {
+if (!$args->isDefined('from') || !$args->isDefined('to') || 
+    (!$args->isDefined('all') && !$args->isDefined('only'))) {
+
   echo Console_Getargs::getHelp($argConfig, null, "\nMissing one or more ".
       "required arguments\n", 80, 2);
   exit(1);
@@ -139,11 +146,12 @@ if ($args->getValue('passphrase') == '') {
 // -- The Good Stuff -----------------------------------------------------------
 
 Crackup::$passphrase = $args->getValue('passphrase');
-Crackup::$remote     = rtrim($args->getValue('to'), '/');
-Crackup::$local      = $args->getValue('from');
+Crackup::$local      = rtrim($args->getValue('to'), '/');
+Crackup::$remote     = rtrim($args->getValue('from'), '/');
 
-if (!is_array(Crackup::$local)) {
-  Crackup::$local = array(Crackup::$local);
+// Make sure the local location exists.
+if (!is_dir(Crackup::$local)) {
+  Crackup::error('Invalid local location: '.Crackup::$local);
 }
 
 // Make sure the remote location exists.
@@ -155,32 +163,26 @@ if (!is_dir(Crackup::$remote)) {
 Crackup::debug('Retrieving remote file list...');
 Crackup::$remoteFiles = Crackup::getRemoteFiles();
 
-// Build a list of source files and directories.
-Crackup::debug('Building local file list...');
-Crackup::$localFiles = Crackup::getLocalFiles();
+Crackup::debug('Restoring files...');
 
-// Determine differences.
-Crackup::debug('Determining differences...');
-$update = Crackup::getUpdatedFiles(Crackup::$localFiles, Crackup::$remoteFiles);
-$remove = Crackup::getRemovedFiles(Crackup::$localFiles, Crackup::$remoteFiles);
-
-// Remove files from the remote location if necessary.
-if (count($remove)) {
-  Crackup::debug('Removing outdated files from destination...');
-  Crackup::remove($remove);
+if ($args->isDefined('all')) {
+  foreach(Crackup::$remoteFiles as $file) {
+    $file->restore(Crackup::$local);
+  }
 }
-
-// Update files at the remote location if necessary.
-if (count($update)) {
-  Crackup::debug('Updating destination with new/changed files...');
-  Crackup::update($update);
+else {
+  $filenames = $args->getValue('only');
+  
+  if (!is_array($filenames)) {
+    $filenames = array($filenames);
+  }
+  
+  foreach($filenames as $filename) {
+    if (!($file = Crackup::findRemoteFile($filename))) {
+      Crackup::error('Remote file not found: "'.$filename.'"');
+    }
+    
+    $file->restore(Crackup::$local);
+  }
 }
-
-// Update the remote file index if necessary.
-if (count($remove) || count($update)) {
-  Crackup::debug('Updating remote index...');
-  Crackup::updateRemoteIndex();
-}
-
-Crackup::debug('Finished!');
 ?>

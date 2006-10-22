@@ -44,5 +44,13 @@ abstract class CrackupFileSystemObject {
   public function getNameHash() {
     return $this->_nameHash;
   }
+  
+  /**
+   * Restores the remote copy of the filesystem object represented by this
+   * instance to the specified local path.
+   *
+   * @param String $localPath
+   */
+  abstract public function restore($localPath);
 }
 ?>

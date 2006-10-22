@@ -43,6 +43,30 @@ class CrackupDirectory extends CrackupFileSystemObject implements Iterator {
   }
   
   /**
+   * Searches all child files and directories for a file or directory with the
+   * specified name. Returns the file or directory if found, otherwise 
+   * <em>false</em>.
+   *
+   * @param String $filename
+   * @return mixed
+   */
+  public function find($filename) {
+    foreach($this->_children as $child) {
+      if ($child->getName() == $filename) {
+        return $child;
+      }
+      
+      if ($child instanceof CrackupDirectory) {
+        if ($result = $child->find($filename)) {
+          return $result;
+        }
+      }
+    }
+    
+    return false;
+  }
+  
+  /**
    * Gets the child with the specified local filename, or <em>null</em> if the
    * filename does not match any children.
    *
@@ -84,6 +108,17 @@ class CrackupDirectory extends CrackupFileSystemObject implements Iterator {
    */
   public function next() {
     return next($this->_children);
+  }
+  
+  /**
+   * Restores the remote copy of this directory to the specified local path.
+   *
+   * @param String $localPath
+   */
+  public function restore($localPath) {
+    foreach($this->_children as $child) {
+      $child->restore($localPath);
+    }
   }
   
   /**

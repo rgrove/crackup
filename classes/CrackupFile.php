@@ -37,5 +37,45 @@ class CrackupFile extends CrackupFileSystemObject {
   public function getFileHash() {
     return $this->_fileHash;
   }
+  
+  /**
+   * Restores the remote copy of this file to the specified local path.
+   * 
+   * @param String $localPath
+   */
+  public function restore($localPath) {
+    $localPath = rtrim($localPath, '/').'/'.str_replace(':', '', dirname(
+        $this->getName()));
+    $localFile  = $localPath.'/'.basename($this->getName());
+    $remoteFile = Crackup::$remote.'/crackup_'.$this->getNameHash();
+
+    // In Windows, PHP's mkdir() function only works with backslashes because
+    // PHP was written by fucktards from the planet Spengo.
+    $windowsLocalPath = str_replace("/", "\\", $localPath);
+    $isWindows = strpos(php_uname('s'), 'Windows') === 0;
+    
+    Crackup::debug($localFile);
+
+    if (!is_dir($localPath)) {
+      if (!@mkdir(($isWindows ? $windowsLocalPath : $localPath), 0750, true)) {
+        Crackup::error('Unable to create local directory: "'.$localPath.'"');
+      }
+    }
+    
+    if (defined('CRACKUP_NOGPG')) {
+      if (false === @copy($remoteFile, $localFile)) {
+        Crackup::error('Unable to restore file: "'.$localFile.'"');
+      }
+    }
+    else {
+      $tmpFile = Crackup::getTempFile();
+      
+      if (false === @copy($remoteFile, $tmpFile)) {
+        Crackup::error('Unable to restore file: "'.$localFile.'"');
+      }
+      
+      Crackup::decryptFile($tmpFile, $localFile);
+    }
+  }
 }
 ?>
