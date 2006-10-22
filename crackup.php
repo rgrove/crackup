@@ -84,10 +84,10 @@ $args = Console_Getargs::factory($argConfig);
 
 if (PEAR::isError($args)) {
   if ($args->getCode() === CONSOLE_GETARGS_ERROR_USER) {
-    echo Console_Getargs::getHelp($argConfig, null, $args->getMessage(), 80, 2);
+    echo Console_Getargs::getHelp($argConfig, null, $args->getMessage(), 78, 2);
   }
   else if ($args->getCode() === CONSOLE_GETARGS_HELP) {
-    echo Console_Getargs::getHelp($argConfig, null, null, 80, 2);
+    echo Console_Getargs::getHelp($argConfig, null, null, 78, 2);
   }
   
   exit(1);
