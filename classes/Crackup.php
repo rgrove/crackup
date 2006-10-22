@@ -4,8 +4,8 @@
  * functionality.
  * 
  * @static
- * @author    Ryan Grove <ryan@wonko.com>
- * @package   Crackup
+ * @author Ryan Grove <ryan@wonko.com>
+ * @package Crackup
  */
 class Crackup {
   // -- Public Static Variables ------------------------------------------------
@@ -26,6 +26,38 @@ class Crackup {
     if (defined('VERBOSE')) {
       echo "--> ".$message."\n";
     }
+  }
+  
+  /**
+   * Decrypts the specified local file using GPG.
+   * 
+   * @param String $infile filename of the file to decrypt
+   * @param String $outfile filename of the file to decrypt to
+   */
+  public static function decryptFile($infile, $outfile) {
+    $gpgCommand = strtr(GPG_DECRYPT, array(
+      ':input_file'  => escapeshellarg($infile),
+      ':output_file' => escapeshellarg($outfile),
+      ':passphrase'  => escapeshellarg(Crackup::$passphrase)
+    ));
+    
+    @shell_exec($gpgCommand);
+  }
+  
+  /**
+   * Encrypts the specified local file using GPG.
+   *
+   * @param String $infile filename of the file to encrypt
+   * @param String $outfile filename of the file to encrypt to
+   */
+  public static function encryptFile($infile, $outfile) {
+    $gpgCommand = strtr(GPG_ENCRYPT, array(
+      ':input_file'  => escapeshellarg($infile),
+      ':output_file' => escapeshellarg($outfile),
+      ':passphrase'  => escapeshellarg(Crackup::$passphrase)
+    ));
+    
+    @shell_exec($gpgCommand);
   }
   
   /**
@@ -50,7 +82,26 @@ class Crackup {
       return array();
     }
     
-    $fileList = @unserialize(@bzdecompress($fileList));
+    if (defined('CRACKUP_NOGPG')) {
+      $fileList = @unserialize($fileList);
+    }
+    else {
+      $tmpName1 = TEMP_DIR.'/'.uniqid('.crackup_temp');
+      $tmpName2 = TEMP_DIR.'/'.uniqid('.crackup_temp');
+      
+      if (!@file_put_contents($tmpName1, $fileList)) {
+        @unlink($tmpName1);
+        @unlink($tmpName2);
+        Crackup::error('Unable to write to temporary directory');
+      }
+      
+      self::decryptFile($tmpName1, $tmpName2);
+      
+      $fileList = @unserialize(@file_get_contents($tmpName2));
+      
+      @unlink($tmpName1);
+      @unlink($tmpName2);
+    }
     
     if (is_array($fileList)) {
       return $fileList;
@@ -223,14 +274,8 @@ class Crackup {
         else {
           // Create a temporary local file and compress/encrypt it with GPG.
           $tmpName = TEMP_DIR.'/'.uniqid('.crackup_temp');
-          
-          $gpgCommand = strtr(GPG, array(
-            ':passphrase'  => escapeshellarg(Crackup::$passphrase),
-            ':output_file' => escapeshellarg($tmpName),
-            ':input_file'  => escapeshellarg($file->getName())
-          ));
-          
-          $gpgResult = @shell_exec($gpgCommand);
+
+          self::encryptFile($file->getName(), $tmpName);          
           
           // Copy the compressed/encrypted temporary file to the destination
           // location, then delete the local copy.
@@ -250,11 +295,40 @@ class Crackup {
    * Brings the remote file index up to date with the local one.
    */
   public static function updateRemoteIndex() {
-    $index = bzcompress(serialize(Crackup::$sourceFiles));
-    
-    if (!@file_put_contents(Crackup::$dest.'/.crackup_index', $index)) {
-      Crackup::error('Unable to update index at destination');
+    if (defined('CRACKUP_NOGPG')) {
+      $index = serialize(Crackup::$sourceFiles);
+      
+      if (!@file_put_contents(Crackup::$dest.'/.crackup_index', $index)) {
+        Crackup::error('Unable to update index at destination');
+      }
     }
+    else {
+      $tmpName1 = TEMP_DIR.'/'.uniqid('.crackup_temp');
+      $tmpName2 = TEMP_DIR.'/'.uniqid('.crackup_temp');
+      
+      if (!@file_put_contents($tmpName1, serialize(Crackup::$sourceFiles))) {
+        @unlink($tmpName1);
+        @unlink($tmpName2);
+        Crackup::error('Unable to write to temporary directory');
+      }
+      
+      self::encryptFile($tmpName1, $tmpName2);
+      
+      $remoteFile = Crackup::$dest.'/.crackup_index';
+      
+      if (@file_exists($remoteFile)) {
+        @unlink($remoteFile);
+      }
+      
+      if (!@copy($tmpName2, $remoteFile)) {
+        @unlink($tmpName1);
+        @unlink($tmpName2);
+        Crackup::error('Unable to update index at destination');
+      }
+      
+      @unlink($tmpName1);
+      @unlink($tmpName2);
+    }    
   }
 }
 ?>
