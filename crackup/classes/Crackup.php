@@ -70,6 +70,13 @@ class Crackup {
     exit(1);
   }
   
+  /**
+   * Searches the remote file index for a file whose local filename matches the
+   * name specified and returns it if found, or <em>false</em> otherwise.
+   *
+   * @param String $filename local filename to search for
+   * @return mixed
+   */
   public static function findRemoteFile($filename) {
     $filename = rtrim($filename, '/');
     
@@ -198,6 +205,22 @@ class Crackup {
   }
   
   /**
+   * Returns a PHP stream context containing settings to be used for stream
+   * operations.
+   * 
+   * @return stream context
+   */
+  public static function getStreamContext() {
+    return stream_context_create(
+      array(
+        'ftp' => array(
+          'overwrite' => true,
+        ),
+      )
+    );
+  }
+  
+  /**
    * Generates a unique temporary filename.
    */
   public static function getTempFile() {
@@ -244,6 +267,17 @@ class Crackup {
   }
   
   /**
+   * Displays a message and prompts for user input.
+   *
+   * @param String $message message to display
+   * @return String user input
+   */
+  public static function prompt($message) {
+    echo $message.': ';
+    return trim(fgets(STDIN));
+  }
+  
+  /**
    * Deletes the specified files/directories from the remote location.
    *
    * @param Array $files array of CrackupFileSystemObject objects to delete
@@ -283,6 +317,7 @@ class Crackup {
         
         // We have to manually delete the remote file if it already exists,
         // since some stream protocols don't allow overwriting by default.
+        // FIXME: For some reason, file_exists returns false even when the file exists on an FTP server. WTF?
         if (@file_exists($remoteFile)) {
           if (false === @unlink($remoteFile)) {
             Crackup::error('Unable to remove "'.$file->getName().'" from '.
@@ -320,40 +355,56 @@ class Crackup {
    * Brings the remote file index up to date with the local one.
    */
   public static function updateRemoteIndex() {
+    $index      = serialize(Crackup::$localFiles);
+    $remoteFile = Crackup::$remote.'/.crackup_index';
+    
     if (defined('CRACKUP_NOGPG')) {
-      $index = serialize(Crackup::$localFiles);
-      
-      if (!@file_put_contents(Crackup::$remote.'/.crackup_index', $index)) {
-        Crackup::error('Unable to update index at destination');
+      while (!@file_put_contents($remoteFile, $index, null,
+          Crackup::getStreamContext())) {
+
+        $tryAgain = Crackup::prompt('Unable to update remote index. Try '.
+            'again? (y/n)');
+
+        if (strtolower($tryAgain) != 'y') {
+          exit(-1);
+        }
       }
     }
     else {
-      $tmpName1 = self::getTempFile();
-      $tmpName2 = self::getTempFile();
+      $tmpName1 = Crackup::getTempFile();
+      $tmpName2 = Crackup::getTempFile();
       
-      if (!@file_put_contents($tmpName1, serialize(Crackup::$localFiles))) {
-        @unlink($tmpName1);
-        @unlink($tmpName2);
-        Crackup::error('Unable to write to temporary directory');
+      while (!@file_put_contents($tmpName1, $index)) {
+        $tryAgain = Crackup::prompt('Unable to write to temporary directory. '.
+            'Try again? (y/n)');
+        
+        if (strtolower($tryAgain) != 'y') {
+          @unlink($tmpName1);
+          @unlink($tmpName2);
+          exit(-1);
+        }
       }
       
       self::encryptFile($tmpName1, $tmpName2);
-      
-      $remoteFile = Crackup::$remote.'/.crackup_index';
       
       if (@file_exists($remoteFile)) {
         @unlink($remoteFile);
       }
       
-      if (!@copy($tmpName2, $remoteFile)) {
-        @unlink($tmpName1);
-        @unlink($tmpName2);
-        Crackup::error('Unable to update index at destination');
+      while (!@copy($tmpName2, $remoteFile)) {
+        $tryAgain = Crackup::prompt('Unable to update remote index. Try '.
+            'again? (y/n)');
+        
+        if (strtolower($tryAgain) != 'y') {
+          @unlink($tmpName1);
+          @unlink($tmpName2);
+          exit(-1);
+        }
       }
       
       @unlink($tmpName1);
       @unlink($tmpName2);
-    }    
+    }
   }
 }
 ?>
