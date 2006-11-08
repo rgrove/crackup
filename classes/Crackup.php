@@ -9,13 +9,26 @@
  */
 class Crackup {
   // -- Public Static Variables ------------------------------------------------
-  public static $remote      = '';
-  public static $remoteFiles = array();
-  public static $passphrase  = '';
+  public static $driver;
   public static $local       = array();
   public static $localFiles  = array();
+  public static $passphrase  = '';
+  public static $remote      = '';
+  public static $remoteFiles = array();
   
   // -- Public Static Methods --------------------------------------------------
+  
+  public static function compressFile($infile, $outfile) {
+    $fp = fopen($infile, 'rb');
+    $bz = bzopen($outfile, 'wb');
+    
+    while (!feof($fp)) {
+      bzwrite($bz, fread($fp, 1048576));
+    }
+    
+    bzclose($bz);
+    fclose($fp);
+  }
   
   /**
    * Prints the specified debugging message if verbose mode is enabled.
@@ -28,6 +41,18 @@ class Crackup {
     }
   }
   
+  public static function decompressFile($infile, $outfile) {
+    $bz = bzopen($infile, 'rb');
+    $fp = fopen($outfile, 'wb');
+    
+    while(!feof($bz)) {
+      fwrite($fp, bzread($bz, 1048576));
+    }
+    
+    fclose($fp);
+    bzclose($bz);
+  }
+  
   /**
    * Decrypts the specified local file using GPG.
    * 
@@ -38,7 +63,7 @@ class Crackup {
     $gpgCommand = strtr(GPG_DECRYPT, array(
       ':input_file'  => escapeshellarg($infile),
       ':output_file' => escapeshellarg($outfile),
-      ':passphrase'  => escapeshellarg(Crackup::$passphrase)
+      ':passphrase'  => escapeshellarg(self::$passphrase)
     ));
     
     @shell_exec($gpgCommand);
@@ -54,7 +79,7 @@ class Crackup {
     $gpgCommand = strtr(GPG_ENCRYPT, array(
       ':input_file'  => escapeshellarg($infile),
       ':output_file' => escapeshellarg($outfile),
-      ':passphrase'  => escapeshellarg(Crackup::$passphrase)
+      ':passphrase'  => escapeshellarg(self::$passphrase)
     ));
     
     @shell_exec($gpgCommand);
@@ -66,7 +91,7 @@ class Crackup {
    * @param String $message message to print
    */
   public static function error($message) {
-    file_put_contents('php://stderr', "Error: ".$message."\n");
+    fwrite(STDERR, "Error: ".$message."\n");
     exit(1);
   }
   
@@ -80,7 +105,7 @@ class Crackup {
   public static function findRemoteFile($filename) {
     $filename = rtrim($filename, '/');
     
-    foreach(Crackup::$remoteFiles as $file) {
+    foreach(self::$remoteFiles as $file) {
       if ($file->getName() == $filename) {
         return $file;
       }
@@ -106,7 +131,7 @@ class Crackup {
   public static function getLocalFiles() {
     $localFiles = array();
     
-    foreach(Crackup::$local as $pattern) {
+    foreach(self::$local as $pattern) {
       if (false === ($filenames = glob($pattern, GLOB_NOSORT))) {
         continue;
       }
@@ -119,11 +144,11 @@ class Crackup {
         }
         
         if (is_dir($filename)) {
-          Crackup::debug($filename);
+          self::debug($filename);
           $localFiles[$filename] = new CrackupDirectory($filename);
         }
         elseif (is_file($filename)) {
-          Crackup::debug($filename);
+          self::debug($filename);
           $localFiles[$filename] = new CrackupFile($filename);
         }
       }
@@ -140,35 +165,35 @@ class Crackup {
    * @see getLocalFiles()
    */
   public static function getRemoteFiles() {
-    if (!($fileList = @file_get_contents(self::$remote.'/.crackup_index'))) {
+    $tmpFileList = self::getTempFile();
+    
+    try {
+      self::$driver->get(self::$remote.'/.crackup_index', $tmpFileList);
+    }
+    catch (Exception $e) {
+      @unlink($tmpFileList);
       return array();
     }
+      
+    $oldFile     = $tmpFileList;
+    $tmpFileList = self::getTempFile();
     
     if (defined('CRACKUP_NOGPG')) {
-      $fileList = @unserialize($fileList);
+      self::decompressFile($oldFile, $tmpFileList);
     }
-    else {
-      $tmpName1 = self::getTempFile();
-      $tmpName2 = self::getTempFile();
-      
-      if (!@file_put_contents($tmpName1, $fileList)) {
-        @unlink($tmpName1);
-        @unlink($tmpName2);
-        Crackup::error('Unable to write to temporary directory');
-      }
-      
-      self::decryptFile($tmpName1, $tmpName2);
-      
-      $fileList = @unserialize(@file_get_contents($tmpName2));
-      
-      @unlink($tmpName1);
-      @unlink($tmpName2);
+    else {        
+      self::decryptFile($oldFile, $tmpFileList);        
     }
+    
+    $fileList = @unserialize(@file_get_contents($tmpFileList));
+    
+    @unlink($oldFile);
+    @unlink($tmpFileList);
     
     if (is_array($fileList)) {
       return $fileList;
     }
-    
+  
     return array();
   }
   
@@ -202,22 +227,6 @@ class Crackup {
     }
     
     return $removed;
-  }
-  
-  /**
-   * Returns a PHP stream context containing settings to be used for stream
-   * operations.
-   * 
-   * @return stream context
-   */
-  public static function getStreamContext() {
-    return stream_context_create(
-      array(
-        'ftp' => array(
-          'overwrite' => true,
-        ),
-      )
-    );
   }
   
   /**
@@ -289,11 +298,14 @@ class Crackup {
         self::remove($file);
       }
       elseif ($file instanceof CrackupFile) {
-        Crackup::debug($file->getName());
+        self::debug($file->getName());
         
-        if (false === @unlink(self::$remote.'/crackup_'.$file->getNameHash())) {
-          Crackup::error('Unable to remove "'.$file->getName().'" from '.
-              'destination');
+        try {
+          self::$driver->delete(self::$remote.'/crackup_'.$file->getNameHash());
+        }
+        catch (Exception $e) {
+          self::error('Unable to remove "'.$file->getName().'" from remote '.
+              'location');
         }
       }
     }
@@ -311,42 +323,29 @@ class Crackup {
         self::update($file);
       }
       elseif ($file instanceof CrackupFile) {
-        Crackup::debug($file->getName());
+        self::debug($file->getName());
         
         $remoteFile = self::$remote.'/crackup_'.$file->getNameHash();
+        $tempFile   = self::getTempFile();        
         
-        // We have to manually delete the remote file if it already exists,
-        // since some stream protocols don't allow overwriting by default.
-        // FIXME: For some reason, file_exists returns false even when the file exists on an FTP server. WTF?
-        if (@file_exists($remoteFile)) {
-          if (false === @unlink($remoteFile)) {
-            Crackup::error('Unable to remove "'.$file->getName().'" from '.
-                'destination prior to update');
-          }
-        }
-        
+        // Create a compressed (and encrypted, if necessary) temporary file.
         if (defined('CRACKUP_NOGPG')) {
-          if (false === @copy($file->getName(), $remoteFile)) {
-            Crackup::error('Unable to update "'.$file->getName().'" at '.
-                'destination');
-          }
+          self::compressFile($file->getName(), $tempFile);
         }
         else {
-          // Create a temporary local file and compress/encrypt it with GPG.
-          $tmpName = self::getTempFile();
-
-          self::encryptFile($file->getName(), $tmpName);          
-          
-          // Copy the compressed/encrypted temporary file to the destination
-          // location, then delete the local copy.
-          if (false === @copy($tmpName, $remoteFile)) {
-            @unlink($tmpName);
-            Crackup::error('Unable to update "'.$file->getName().'" at '.
-                'destination');
-          }
-          
-          @unlink($tmpName);
+          self::encryptFile($file->getName(), $tempFile);
         }
+          
+        // Upload the temporary file to the remote location, then delete it.
+        try {
+          self::$driver->put($tempFile, $remoteFile);
+        }
+        catch (Exception $e) {
+          @unlink($tempFile);
+          self::error('Unable to upload file: '.$file->getName());
+        }
+        
+        @unlink($tempFile);
       }
     }
   }
@@ -355,56 +354,43 @@ class Crackup {
    * Brings the remote file index up to date with the local one.
    */
   public static function updateRemoteIndex() {
-    $index      = serialize(Crackup::$localFiles);
-    $remoteFile = Crackup::$remote.'/.crackup_index';
+    $indexFile  = self::getTempFile();
+    $remoteFile = self::$remote.'/.crackup_index';
     
+    if (!file_put_contents($indexFile, serialize(self::$localFiles))) {
+      self::error('Unable to write temporary file');
+    }
+    
+    $oldFile   = $indexFile;
+    $indexFile = self::getTempFile();
+      
     if (defined('CRACKUP_NOGPG')) {
-      while (!@file_put_contents($remoteFile, $index, null,
-          Crackup::getStreamContext())) {
-
-        $tryAgain = Crackup::prompt('Unable to update remote index. Try '.
-            'again? (y/n)');
-
-        if (strtolower($tryAgain) != 'y') {
-          exit(-1);
-        }
-      }
+      self::compressFile($oldFile, $indexFile);
     }
     else {
-      $tmpName1 = Crackup::getTempFile();
-      $tmpName2 = Crackup::getTempFile();
-      
-      while (!@file_put_contents($tmpName1, $index)) {
-        $tryAgain = Crackup::prompt('Unable to write to temporary directory. '.
-            'Try again? (y/n)');
-        
-        if (strtolower($tryAgain) != 'y') {
-          @unlink($tmpName1);
-          @unlink($tmpName2);
-          exit(-1);
-        }
-      }
-      
-      self::encryptFile($tmpName1, $tmpName2);
-      
-      if (@file_exists($remoteFile)) {
-        @unlink($remoteFile);
-      }
-      
-      while (!@copy($tmpName2, $remoteFile)) {
-        $tryAgain = Crackup::prompt('Unable to update remote index. Try '.
-            'again? (y/n)');
-        
-        if (strtolower($tryAgain) != 'y') {
-          @unlink($tmpName1);
-          @unlink($tmpName2);
-          exit(-1);
-        }
-      }
-      
-      @unlink($tmpName1);
-      @unlink($tmpName2);
+      self::encryptFile($oldFile, $indexFile);
     }
+    
+    @unlink($oldFile);
+
+    $success = false;
+    
+    while(!$success) {
+      try {
+        $success = self::$driver->put($indexFile, $remoteFile);
+      }
+      catch (Exception $e) {
+        $tryAgain = self::prompt('Unable to update remote index. Try again? '.
+            '(y/n)');
+        
+        if (strtolower($tryAgain) != 'y') {
+          @unlink($indexFile);
+          exit(-1);
+        }
+      }
+    }
+    
+    @unlink($indexFile);
   }
 }
 ?>

@@ -62,20 +62,25 @@ class CrackupFile extends CrackupFileSystemObject {
       }
     }
     
+    // Download the file.
+    $tmpFile = Crackup::getTempFile();
+    
+    try {
+      Crackup::$driver->get($remoteFile, $tmpFile);
+    }
+    catch (Exception $e) {
+      @unlink($tmpFile);
+      Crackup::error('Unable to restore file: '.$localFile);
+    }
+    
     if (defined('CRACKUP_NOGPG')) {
-      if (false === @copy($remoteFile, $localFile)) {
-        Crackup::error('Unable to restore file: "'.$localFile.'"');
-      }
+      Crackup::decompressFile($tmpFile, $localFile);
     }
     else {
-      $tmpFile = Crackup::getTempFile();
-      
-      if (false === @copy($remoteFile, $tmpFile)) {
-        Crackup::error('Unable to restore file: "'.$localFile.'"');
-      }
-      
       Crackup::decryptFile($tmpFile, $localFile);
     }
+    
+    @unlink($tmpFile);
   }
 }
 ?>
