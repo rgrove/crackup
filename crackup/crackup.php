@@ -27,6 +27,7 @@
 
 require_once 'Console/Getargs.php';
 require_once 'classes/Crackup.php';
+require_once 'classes/CrackupDriver.php';
 require_once 'classes/CrackupFileSystemObject.php';
 require_once 'classes/CrackupDirectory.php';
 require_once 'classes/CrackupFile.php';
@@ -146,9 +147,12 @@ if (!is_array(Crackup::$local)) {
   Crackup::$local = array(Crackup::$local);
 }
 
-// Make sure the remote location exists.
-if (!is_dir(Crackup::$remote)) {
-  Crackup::error('Invalid remote location: '.Crackup::$remote);
+// Load driver.
+try {
+  Crackup::$driver = CrackupDriver::getDriver(Crackup::$remote);
+}
+catch (Exception $e) {
+  Crackup::error($e->getMessage());
 }
 
 // Get the list of remote files and directories.
