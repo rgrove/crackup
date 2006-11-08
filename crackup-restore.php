@@ -1,3 +1,4 @@
+#!/usr/local/bin/php
 <?php
 /**
  * Restores files from Crackup backups.
