@@ -17,7 +17,7 @@ abstract class CrackupFileSystemObject {
   /**
    * Constructs a new CrackupFileSystemObject.
    * 
-   * @param String $name object name
+   * @param string $name object name
    */
   public function __construct($name) {
     $this->_name     = $name;
@@ -29,7 +29,7 @@ abstract class CrackupFileSystemObject {
   /**
    * Gets the name of the filesystem object represented by this instance.
    * 
-   * @return String
+   * @return string
    */
   public function getName() {
     return $this->_name;
@@ -39,7 +39,7 @@ abstract class CrackupFileSystemObject {
    * Gets the SHA256 hash of the name of the filesystem object represented by
    * this instance.
    *
-   * @return String
+   * @return string
    */
   public function getNameHash() {
     return $this->_nameHash;
@@ -49,7 +49,7 @@ abstract class CrackupFileSystemObject {
    * Restores the remote copy of the filesystem object represented by this
    * instance to the specified local path.
    *
-   * @param String $localPath
+   * @param string $localPath
    */
   abstract public function restore($localPath);
 }

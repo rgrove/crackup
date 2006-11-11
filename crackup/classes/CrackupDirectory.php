@@ -18,7 +18,7 @@ class CrackupDirectory extends CrackupFileSystemObject implements Iterator {
   /**
    * Constructs a new CrackupDirectory object.
    * 
-   * @param String $name directory name
+   * @param string $name directory name
    */
   public function __construct($name) {
     if (!is_dir($name)) {
@@ -47,7 +47,7 @@ class CrackupDirectory extends CrackupFileSystemObject implements Iterator {
    * specified name. Returns the file or directory if found, otherwise 
    * <em>false</em>.
    *
-   * @param String $filename
+   * @param string $filename
    * @return mixed
    */
   public function find($filename) {
@@ -70,7 +70,7 @@ class CrackupDirectory extends CrackupFileSystemObject implements Iterator {
    * Gets the child with the specified local filename, or <em>null</em> if the
    * filename does not match any children.
    *
-   * @param String $name local filename
+   * @param string $name local filename
    * @return CrackupFileSystemObject
    */
   public function get($name) {
@@ -84,7 +84,7 @@ class CrackupDirectory extends CrackupFileSystemObject implements Iterator {
   /**
    * Gets an array of all children of this directory.
    *
-   * @return Array array of CrackupFileSystemObject objects
+   * @return array array of CrackupFileSystemObject objects
    */
   public function getChildren() {
     return $this->_children;
@@ -94,7 +94,7 @@ class CrackupDirectory extends CrackupFileSystemObject implements Iterator {
    * Returns the key (the local filename) of the current element in the children
    * array.
    *
-   * @return String
+   * @return string
    */
   public function key() {
     return key($this->_children);
@@ -113,7 +113,7 @@ class CrackupDirectory extends CrackupFileSystemObject implements Iterator {
   /**
    * Restores the remote copy of this directory to the specified local path.
    *
-   * @param String $localPath
+   * @param string $localPath
    */
   public function restore($localPath) {
     foreach($this->_children as $child) {

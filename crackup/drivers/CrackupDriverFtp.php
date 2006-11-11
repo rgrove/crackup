@@ -1,4 +1,10 @@
 <?php
+/**
+ * FTP storage driver for Crackup.
+ * 
+ * @author Ryan Grove <ryan@wonko.com>
+ * @package Crackup
+ */
 class CrackupDriverFtp extends CrackupDriver {
   // -- Private Instance Variables ---------------------------------------------
   private $_stream;
@@ -16,13 +22,13 @@ class CrackupDriverFtp extends CrackupDriver {
         (isset($parsedUrl['port']) ? $parsedUrl['port'] : 21));
     
     if ($this->_stream === false) {
-      throw new Exception('Unable to connect to host: '.$url);
+      throw new CrackupDriverException('Unable to connect to host: '.$url);
     }
     
     // Login if necessary.
     if (isset($parsedUrl['user']) && isset($parsedUrl['pass'])) {
       if (!@ftp_login($this->_stream, $parsedUrl['user'], $parsedUrl['pass'])) {
-        throw new Exception('Login failed: '.$url);
+        throw new CrackupDriverException('Login failed: '.$url);
       }
     }
     

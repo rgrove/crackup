@@ -1,4 +1,10 @@
 <?php
+/**
+ * Filesystem storage driver for Crackup.
+ * 
+ * @author Ryan Grove <ryan@wonko.com>
+ * @package Crackup
+ */
 class CrackupDriverFile extends CrackupDriver {
   // -- Public Instance Methods ------------------------------------------------
   public function delete($url) {

@@ -165,12 +165,13 @@ Crackup::$localFiles = Crackup::getLocalFiles();
 
 // Determine differences.
 Crackup::debug('Determining differences...');
+
 $update = Crackup::getUpdatedFiles(Crackup::$localFiles, Crackup::$remoteFiles);
 $remove = Crackup::getRemovedFiles(Crackup::$localFiles, Crackup::$remoteFiles);
 
 // Remove files from the remote location if necessary.
 if (count($remove)) {
-  Crackup::debug('Removing outdated files from destination...');
+  Crackup::debug('Removing outdated files from remote location...');
   Crackup::remove($remove);
 }
 

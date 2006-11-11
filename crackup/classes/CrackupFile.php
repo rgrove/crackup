@@ -14,7 +14,7 @@ class CrackupFile extends CrackupFileSystemObject {
   /**
    * Constructs a new CrackupFile object.
    *
-   * @param String $filename filename
+   * @param string $filename filename
    */
   public function __construct($filename) {
     if (!is_file($filename)) {
@@ -32,7 +32,7 @@ class CrackupFile extends CrackupFileSystemObject {
    * Gets the SHA256 hash value of the file represented by this CrackupFile
    * instance as of the moment the class was instantiated.
    *
-   * @return String
+   * @return string
    */
   public function getFileHash() {
     return $this->_fileHash;
@@ -41,7 +41,7 @@ class CrackupFile extends CrackupFileSystemObject {
   /**
    * Restores the remote copy of this file to the specified local path.
    * 
-   * @param String $localPath
+   * @param string $localPath
    */
   public function restore($localPath) {
     $localPath = rtrim($localPath, '/').'/'.str_replace(':', '', dirname(
