@@ -18,9 +18,16 @@ class Crackup {
   
   // -- Public Static Methods --------------------------------------------------
   
+  /**
+   * Compresses the specified local input file using bzip2 compression and
+   * writes the compressed data to the specified output file.
+   * 
+   * @param string $infile name of the input file
+   * @param string $outfile name of the output file
+   */
   public static function compressFile($infile, $outfile) {
     $fp = fopen($infile, 'rb');
-    $bz = bzopen($outfile, 'wb');
+    $bz = bzopen($outfile, 'w');
     
     while (!feof($fp)) {
       bzwrite($bz, fread($fp, 1048576));
@@ -33,7 +40,7 @@ class Crackup {
   /**
    * Prints the specified debugging message if verbose mode is enabled.
    * 
-   * @param String $message message to print
+   * @param string $message message to print
    */
   public static function debug($message) {
     if (defined('VERBOSE')) {
@@ -41,8 +48,15 @@ class Crackup {
     }
   }
   
+  /**
+   * Decompresses the specified local input file using bzip2 and writes the
+   * decompressed data to the specified output file.
+   * 
+   * @param string $infile name of the input file
+   * @param string $outfile name of the output file
+   */  
   public static function decompressFile($infile, $outfile) {
-    $bz = bzopen($infile, 'rb');
+    $bz = bzopen($infile, 'r');
     $fp = fopen($outfile, 'wb');
     
     while(!feof($bz)) {
@@ -56,8 +70,8 @@ class Crackup {
   /**
    * Decrypts the specified local file using GPG.
    * 
-   * @param String $infile filename of the file to decrypt
-   * @param String $outfile filename of the file to decrypt to
+   * @param string $infile filename of the file to decrypt
+   * @param string $outfile filename of the file to decrypt to
    */
   public static function decryptFile($infile, $outfile) {
     $gpgCommand = strtr(GPG_DECRYPT, array(
@@ -72,8 +86,8 @@ class Crackup {
   /**
    * Encrypts the specified local file using GPG.
    *
-   * @param String $infile filename of the file to encrypt
-   * @param String $outfile filename of the file to encrypt to
+   * @param string $infile filename of the file to encrypt
+   * @param string $outfile filename of the file to encrypt to
    */
   public static function encryptFile($infile, $outfile) {
     $gpgCommand = strtr(GPG_ENCRYPT, array(
@@ -88,7 +102,7 @@ class Crackup {
   /**
    * Prints the specified error message to stderr and exists with an error code.
    *
-   * @param String $message message to print
+   * @param string $message message to print
    */
   public static function error($message) {
     fwrite(STDERR, "Error: ".$message."\n");
@@ -99,7 +113,7 @@ class Crackup {
    * Searches the remote file index for a file whose local filename matches the
    * name specified and returns it if found, or <em>false</em> otherwise.
    *
-   * @param String $filename local filename to search for
+   * @param string $filename local filename to search for
    * @return mixed
    */
   public static function findRemoteFile($filename) {
@@ -125,7 +139,7 @@ class Crackup {
    * directories on the local system in the locations specified by the array of
    * file patterns in Crackup::$local.
    *
-   * @return Array
+   * @return array
    * @see getRemoteFiles()
    */
   public static function getLocalFiles() {
@@ -161,7 +175,7 @@ class Crackup {
    * Returns an array of CrackupFileSystemObject objects present at the remote
    * location.
    *
-   * @return Array
+   * @return array
    * @see getLocalFiles()
    */
   public static function getRemoteFiles() {
@@ -202,15 +216,16 @@ class Crackup {
    * directories that exist on the destination but no longer exist on the local
    * machine.
    *
-   * @param Array $localFiles array of local CrackupFileSystemObject objects
-   * @param Array $remoteFiles array of remote CrackupFileSystemObject objects
-   * @return Array removed CrackupFileSystemObject objects
+   * @param array $localFiles array of local CrackupFileSystemObject objects
+   * @param array $remoteFiles array of remote CrackupFileSystemObject objects
+   * @return array removed CrackupFileSystemObject objects
    * @see getUpdatedFiles
    */
   public static function getRemovedFiles($localFiles, $remoteFiles) {
     $removed = array();
     
     foreach($remoteFiles as $name => $remoteFile) {
+      // Remote remote files that no longer exist.
       if (!isset($localFiles[$name])) {
         $removed[] = $remoteFile;
         continue;
@@ -231,6 +246,8 @@ class Crackup {
   
   /**
    * Generates a unique temporary filename.
+   * 
+   * @return string
    */
   public static function getTempFile() {
     return TEMP_DIR.'/'.uniqid('.crackup_temp');
@@ -241,9 +258,9 @@ class Crackup {
    * directories that are new or have been modified on the local machine and
    * need to be updated at the destination location.
    *
-   * @param Array $localFiles array of local CrackupFileSystemObject objects
-   * @param Array $remoteFiles array of remote CrackupFileSystemObject objects
-   * @return Array updated CrackupFileSystemObject objects
+   * @param array $localFiles array of local CrackupFileSystemObject objects
+   * @param array $remoteFiles array of remote CrackupFileSystemObject objects
+   * @return array updated CrackupFileSystemObject objects
    * @see getRemovedFiles()
    */
   public static function getUpdatedFiles($localFiles, $remoteFiles) {
@@ -278,8 +295,8 @@ class Crackup {
   /**
    * Displays a message and prompts for user input.
    *
-   * @param String $message message to display
-   * @return String user input
+   * @param string $message message to display
+   * @return string user input
    */
   public static function prompt($message) {
     echo $message.': ';
@@ -289,7 +306,7 @@ class Crackup {
   /**
    * Deletes the specified files/directories from the remote location.
    *
-   * @param Array $files array of CrackupFileSystemObject objects to delete
+   * @param array $files array of CrackupFileSystemObject objects to delete
    * @see update()
    */
   public static function remove($files) {
@@ -314,7 +331,7 @@ class Crackup {
   /**
    * Uploads the specified files/directories to the remote location.
    *
-   * @param Array $files array of CrackupFileSystemObject objects to update
+   * @param array $files array of CrackupFileSystemObject objects to update
    * @see remove()
    */
   public static function update($files) {
