@@ -40,39 +40,43 @@ $argConfig = array(
     'short' => 'a',
     'max'   => 0,
     'min'   => 0,
-    'desc'  => 'Restore all files'
+    'desc'  => 'Restore all files',
+    'default' => null
   ),
 
   'from' => array(
     'short' => 'f',
     'max'   => 1,
-    'min'   => 1,
+    'min'   => -1,
     'desc'  => 'Backup URL to restore from (e.g., '.
-        'ftp://user:pass@server.com/path)'
+        'ftp://user:pass@server.com/path)',
+    'default' => null
   ),
   
   'only|just' => array(
     'short' => 'o|j',
     'max'   => -1,
-    'min'   => 1,
+    'min'   => -1,
     'desc'  => 'Restore only the specified files and directories (and all '.
-        'contents, in the case of directories)'
+        'contents, in the case of directories)',
+    'default' => null
   ),
   
   'passphrase|pass|password' => array(
     'short'   => 'p',
     'max'     => 1,
-    'min'     => 1,
+    'min'     => -1,
     'desc'    => 'Encryption passphrase (if not specified, no encryption will '.
         'be used)',
-    'default' => ''
+    'default' => null
   ),
   
 	'to' => array(
     'short' => 't',
     'max'   => 1,
-    'min'   => 1,
-    'desc'  => 'Destination root directory for the restored files'
+    'min'   => -1,
+    'desc'  => 'Destination root directory for the restored files',
+    'default' => null
   ),
 
   'verbose' => array(
@@ -141,7 +145,7 @@ if (!$args->isDefined('from') || !$args->isDefined('to') ||
   exit(1);
 }
 
-if ($args->getValue('passphrase') == '') {
+if (!$args->isDefined('passphrase') || $args->getValue('passphrase') == '') {
   define('CRACKUP_NOGPG', true);
 }
 

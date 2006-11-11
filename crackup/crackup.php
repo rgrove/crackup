@@ -49,24 +49,26 @@ $argConfig = array(
   'from' => array(
     'short' => 'f',
     'max'   => -1,
-    'min'   => 1,
-    'desc'  => 'Local files/directories to back up (wildcards are allowed)'
+    'min'   => -1,
+    'desc'  => 'Local files/directories to back up (wildcards are allowed)',
+    'default' => null
   ),
   
   'passphrase|pass|password' => array(
     'short'   => 'p',
     'max'     => 1,
-    'min'     => 1,
+    'min'     => -1,
     'desc'    => 'Encryption passphrase (if not specified, no encryption will '.
         'be used)',
-    'default' => ''
+    'default' => null
   ),
   
 	'to' => array(
     'short' => 't',
     'max'   => 1,
-    'min'   => 1,
-    'desc'  => 'Destination URL (e.g., ftp://user:pass@server.com/path)'
+    'min'   => -1,
+    'desc'  => 'Destination URL (e.g., ftp://user:pass@server.com/path)',
+    'default' => null
   ),
 
   'verbose' => array(
@@ -133,7 +135,7 @@ if (!$args->isDefined('from') || !$args->isDefined('to')) {
   exit(1);
 }
 
-if ($args->getValue('passphrase') == '') {
+if (!$args->isDefined('passphrase') || $args->getValue('passphrase') == '') {
   define('CRACKUP_NOGPG', true);
 }
 
