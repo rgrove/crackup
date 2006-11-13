@@ -1,6 +1,8 @@
 require 'digest/sha2'
 
 module Crackup
+  
+  # Represents a filesystem object on the local filesystem.
   class CrackupFileSystemObject
     attr_reader :name, :name_hash
     
