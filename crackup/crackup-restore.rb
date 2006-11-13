@@ -9,8 +9,8 @@
 # License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
 #
 
-require 'lib/Crackup'
 require 'optparse'
+require "#{File.dirname(__FILE__)}/lib/Crackup"
 
 module Crackup
   APP_NAME      = 'crackup-restore'
@@ -21,6 +21,7 @@ module Crackup
   @options = {
     :all        => false,
     :from       => nil,
+    :list       => false,
     :only       => [],
     :passphrase => nil,
     :to         => nil,
@@ -31,7 +32,7 @@ module Crackup
     optparse.summary_width  = 24
     optparse.summary_indent = '  '
     
-    optparse.banner = 'Usage: crackup-restore -f <url> [-p <pass>] [-v] [<file|dir> ...]'
+    optparse.banner = "Usage: crackup-restore -f <url> [-p <pass>] [-v] [-l | <file|dir> ...]"
     optparse.separator ''
     
     optparse.on '-f', '--from <url>',
@@ -40,6 +41,11 @@ module Crackup
       @options[:from] = url.gsub("\\", '/').chomp('/')
     end
     
+    optparse.on '-l', '--list',
+        'List all files at the remote location' do
+      @options[:list] = true
+    end
+
     optparse.on '-p', '--passphrase <pass>',
         'Encryption passphrase (if not specified, no',
         'encryption will be used)' do |passphrase|
@@ -80,7 +86,7 @@ module Crackup
   begin
     optparse.parse!(ARGV)
   rescue => e
-    abort("Error: #{e}")
+    error e
   end
   
   # Add files to the "only" array.
@@ -99,8 +105,19 @@ module Crackup
   
   # Get the list of remote files and directories.
   debug 'Retrieving remote file list...'
-  @remote_files = get_remote_files(@options[:from])
   
+  begin
+    @remote_files = get_remote_files(@options[:from])
+  rescue => e
+    error e
+  end
+  
+  # List remote files if the --list option was given.
+  if @options[:list]
+    puts get_list(@remote_files).sort
+    exit
+  end
+
   # Restore files.
   debug 'Restoring files...'
 
