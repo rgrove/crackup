@@ -1,4 +1,3 @@
-require 'set'
 require 'tempfile'
 require 'yaml'
 require 'zlib'
@@ -108,24 +107,24 @@ module Crackup
     return "'#{arg.gsub("'", "\\'")}'"
   end
   
-  # Searches the remote file index for a file whose local filename matches
-  # <em>filename</em> and returns it if found, or <em>nil</em> otherwise.
-  def self.find_remote_file(filename)
-    filename.chomp!('/')
-    
-    if @remote_files.has_key?(filename)
-      return @remote_files[filename]
-    end
+  # Gets an array of files in the remote file index whose local filenames match
+  # <em>pattern</em>.
+  def self.find_remote_files(pattern)
+    files = []
+    pattern.chomp!('/')
     
     @remote_files.each do |name, file|
-      next unless file.is_a?(CrackupDirectory)
-      
-      if child = file.find(filename)
-        return child
+      if File.fnmatch?(pattern, file.name)
+        files << file
+        next
       end
+
+      next unless file.is_a?(CrackupDirectory)
+
+      files += file.find(pattern)
     end
     
-    return nil
+    return files
   end
   
   # Gets an array of filenames from <em>files</em>, which may be either a Hash
@@ -146,7 +145,7 @@ module Crackup
 
   # Gets a Hash of CrackupFileSystemObjects representing the files and
   # directories on the local system in the locations specified by the array of
-  # filenames in @local.
+  # filenames in <tt>options[:from]</tt>.
   def self.get_local_files
     local_files = {}
     
@@ -331,8 +330,6 @@ module Crackup
       raise CrackupIndexError, "Unable to update remote index: #{e}"
     end
   end
-  
-  # -- Error Classes -----------------------------------------------------------
   
   class CrackupError < StandardError; end
   class CrackupCompressionError < CrackupError; end
