@@ -46,7 +46,7 @@ module Crackup
         dir.each do |filename|
           next if filename == '.' || filename == '..'
 
-          filename = File.join(dir.path, filename)
+          filename = File.join(dir.path, filename).gsub("\\", "/")
 
           # Skip this file if it's in the exclusion list.
           unless Crackup::options[:exclude].nil?

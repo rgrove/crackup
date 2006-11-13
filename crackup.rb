@@ -63,6 +63,7 @@ module Crackup
       
       begin
         @options[:exclude] = File.readlines(filename)
+        @options[:exclude].map! {|item| item.chomp }
       rescue => e
         error "Error reading exclusion file: #{e}"
       end
