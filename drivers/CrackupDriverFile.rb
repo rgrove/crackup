@@ -9,22 +9,24 @@ module Crackup
   # License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
   # 
   class CrackupDriverFile < CrackupDriver
+  
+    # Deletes the file at the specified <em>url</em>.
     def delete(url)
       File.delete(get_path(url))
       return true
+      
+    rescue => e
+      raise CrackupStorageError, "Unable to delete #{url}: #{e}"
     end
     
+    # Downloads the file at <em>url</em> to <em>local_filename</em>.
     def get(url, local_filename)
       FileUtils::copy(get_path(url), local_filename)
       return true
-    end
     
-    def put(url, local_filename)
-      FileUtils::copy(local_filename, get_path(url))
-      return true
+    rescue => e
+      raise CrackupStorageError, "Unable to get #{url}: #{e}"
     end
-    
-    #private
     
     # Gets the filesystem path represented by <em>url</em>. This method is
     # capable of parsing URLs in any of the following formats:
@@ -51,8 +53,17 @@ module Crackup
       
       return path += uri.path
       
-      rescue URI::InvalidURIError => e
-        Crackup::error "Invalid URL: #{url}"
+    rescue => e
+      raise CrackupStorageError, "Invalid URL: #{url}"
+    end
+    
+    # Uploads the file at <em>local_filename</em> to <em>url</em>.
+    def put(url, local_filename)
+      FileUtils::copy(local_filename, get_path(url))
+      return true
+      
+    rescue => e
+      raise CrackupStorageError, "Unable to put #{url}: #{e}"
     end
   end
 end
