@@ -29,11 +29,8 @@ module Crackup
     
     # Removes this file from the remote location.
     def remove
-      Crackup::debug '--> ' + @name
+      Crackup::debug "--> #{@name}"
       Crackup::driver.delete(@url)
-      
-    rescue => e
-      Crackup::error "Unable to delete remote file: #{@url}"
     end
 
     # Restores the remote copy of this file to the local path specified by
