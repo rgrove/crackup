@@ -1,10 +1,14 @@
 require 'uri'
 
 module Crackup
+
+  # Base storage driver class for Crackup.
   class CrackupDriver
     attr_reader :url
     
-    # -- Static Methods --------------------------------------------------------
+    # Gets an instance of the appropriate storage driver to handle the specified
+    # <em>url</em>. If no suitable driver is found, raises an error of type
+    # StandardError.
     def self.get_driver(url)
       begin
         uri = URI::parse(url)
@@ -12,7 +16,15 @@ module Crackup
         abort("Invalid URL: #{url}")
       end
       
-      driver_class = "CrackupDriver#{uri.scheme.capitalize}"
+      # Use the filesystem driver if no scheme is specified or if the scheme is
+      # a single letter (which indicates a Windows drive letter).
+      if uri.scheme.nil? || uri.scheme =~ /^[a-z]$/i
+        scheme = 'File'
+      else
+        scheme = uri.scheme.capitalize
+      end
+      
+      driver_class = "CrackupDriver#{scheme}"
       driver_file  = File.dirname(__FILE__) + "/../drivers/#{driver_class}.rb"
       
       # Load the driver.
@@ -23,19 +35,20 @@ module Crackup
       return Crackup::const_get(driver_class).new(url)
     end
     
-    # -- Instance Methods ------------------------------------------------------
     def initialize(url)
       @url = url
     end
     
-    # -- Abstract Instance Methods ---------------------------------------------
     def delete(url)
+      return false
     end
     
     def get(url, local_filename)
+      return false
     end
     
     def put(url, local_filename)
+      return false
     end
   end
 end

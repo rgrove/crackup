@@ -32,7 +32,7 @@ module Crackup
       return nil
     end
 
-    # Builds a SortedSet of child objects by analyzing the local filesystem. A
+    # Builds a Hash of child objects by analyzing the local filesystem. A
     # refresh is automatically performed when the CrackupDirectory object is
     # instantiated.
     def refresh_children

@@ -33,21 +33,23 @@ module Crackup
       Crackup::driver.delete(@url)
       
     rescue => e
-      abort "Unable to delete remote file: #{@url}"
+      Crackup::error "Unable to delete remote file: #{@url}"
     end
 
     # Restores the remote copy of this file to the local path specified by
     # <em>path</em>.
     def restore(path)
       path     = path.chomp('/') + '/' + File.dirname(@name).delete(':')
-      filename = localpath + '/' + File.basename(@name)
+      filename = path + '/' + File.basename(@name)
 
+      Crackup::debug '--> ' + filename
+      
       # Create the path if it doesn't exist.
       unless File.directory?(path)
         begin
           FileUtils.mkdir_p(path)
         rescue => e
-          abort "Unable to create local directory: #{path}"
+          Crackup::error "Unable to create local directory: #{path}"
         end
       end
       
@@ -57,7 +59,7 @@ module Crackup
       begin
         Crackup::driver.get(@url, tempfile)
       rescue => e
-        abort "Unable to restore file: #{filename}"
+        Crackup::error "Unable to restore file: #{filename}"
       end
       
       # Decompress/decrypt the file.
@@ -85,7 +87,7 @@ module Crackup
       begin
         Crackup::driver.put(@url, tempfile)
       rescue => e
-        abort "Unable to upload file: #{@name}"
+        Crackup::error "Unable to upload file: #{@name}"
       end
     end
   end
