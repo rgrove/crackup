@@ -44,6 +44,13 @@ module Crackup
 
           filename = File.join(dir.path, filename)
 
+          # Skip this file if it's in the exclusion list.
+          unless Crackup::options[:exclude].nil?
+            next if Crackup::options[:exclude].any? do |pattern|
+              File.fnmatch?(pattern, filename)
+            end
+          end
+
           if File.directory?(filename)
             @children[filename.chomp('/')] = CrackupDirectory.new(filename)
           elsif File.file?(filename)

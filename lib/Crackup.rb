@@ -39,6 +39,9 @@ module Crackup
         end
       end
     end
+    
+  rescue => e
+    raise CrackupCompressionError, "Unable to compress #{infile}: #{e}"
   end
   
   # Prints <em>message</em> to stdout if verbose mode is enabled.
@@ -56,6 +59,9 @@ module Crackup
         end
       end
     end
+  
+  rescue => e
+    raise CrackupCompressionError, "Unable to decompress #{infile}: #{e}"
   end
   
   # Calls GPG to decrypt <em>infile</em> to <em>outfile</em>.
@@ -67,7 +73,9 @@ module Crackup
     gpg_command.gsub!(':output_file', escapeshellarg(outfile))
     gpg_command.gsub!(':passphrase', escapeshellarg(@options[:passphrase]))
     
-    system gpg_command
+    unless system(gpg_command)
+      raise CrackupEncryptionError, "Unable to decrypt file: #{infile}"
+    end
   end
   
   def self.driver
@@ -83,13 +91,15 @@ module Crackup
     gpg_command.gsub!(':output_file', escapeshellarg(outfile))
     gpg_command.gsub!(':passphrase', escapeshellarg(@options[:passphrase]))
     
-    system gpg_command
+    unless system(gpg_command)
+      raise CrackupEncryptionError, "Unable to encrypt file: #{infile}"
+    end
   end
   
   # Prints the specified <em>message</em> to stderr and exits with an error
   # code of 1.
   def self.error(message)
-    abort "Error: #{message}"
+    abort "#{APP_NAME}: #{message}"
   end
   
   # Wraps <em>arg</em> in single quotes, escaping any single quotes contained
@@ -118,7 +128,23 @@ module Crackup
     return nil
   end
   
-  # Gets a SortedSet of CrackupFileSystemObjects representing the files and
+  # Gets an array of filenames from <em>files</em>, which may be either a Hash
+  # or a CrackupFileSystemObject.
+  def self.get_list(files)
+    list = []
+  
+    if files.is_a?(Hash)
+      files.each_value {|value| list += get_list(value) }
+    elsif files.is_a?(CrackupDirectory)
+      list += get_list(files.children)
+    elsif files.is_a?(CrackupFile)
+      list << files.name 
+    end
+    
+    return list
+  end
+
+  # Gets a Hash of CrackupFileSystemObjects representing the files and
   # directories on the local system in the locations specified by the array of
   # filenames in @local.
   def self.get_local_files
@@ -128,11 +154,18 @@ module Crackup
       next unless File.exist?(filename = filename.chomp('/'))
       next if local_files.has_key?(filename)
       
+      # Skip this file if it's in the exclusion list.
+      unless @options[:exclude].nil?
+        next if @options[:exclude].any? do |pattern|
+          File.fnmatch?(pattern, filename)
+        end
+      end
+      
       if File.directory?(filename)
-        debug '--> ' + filename
+        debug "--> #{filename}"
         local_files[filename] = CrackupDirectory.new(filename)
       elsif File.file?(filename)
-        debug '--> ' + filename
+        debug "--> #{filename}"
         local_files[filename] = CrackupFile.new(filename)
       end
     end
@@ -140,32 +173,50 @@ module Crackup
     return local_files
   end
   
-  # Gets a SortedSet of CrackupFileSystemObjects present at the remote location.
+  # Gets a Hash of CrackupFileSystemObjects present at the remote location.
   def self.get_remote_files(url)
     tempfile = get_tempfile()
     
+    # Download the index file.
     begin
       @driver.get(url + '/.crackup_index', tempfile)
     rescue => e
       return {}
     end
     
+    # Decompress/decrypt the index file.
     oldfile  = tempfile
     tempfile = get_tempfile()
     
     if @options[:passphrase].nil?
-      decompress_file(oldfile, tempfile)
+      begin
+        decompress_file(oldfile, tempfile)
+      rescue => e
+        raise CrackupIndexError, "Unable to decompress index file. Maybe " +
+            "it's encrypted?"
+      end
     else
-      decrypt_file(oldfile, tempfile)
+      begin
+        decrypt_file(oldfile, tempfile)
+      rescue => e
+        raise CrackupIndexError, "Unable to decrypt index file."
+      end
     end
     
-    file_list = YAML::load_file(tempfile)
-    
-    if file_list.is_a?(Hash)
-      return file_list
+    # Load the index file.
+    file_list = {}
+
+    begin
+      File.open(tempfile, 'rb') {|file| file_list = Marshal.load(file) }
+    rescue => e
+      raise CrackupIndexError, "Remote index is invalid!"
     end
     
-    return {}
+    unless file_list.is_a?(Hash)
+      raise CrackupIndexError, "Remote index is invalid!"
+    end
+    
+    return file_list
   end
   
   # Gets an array of CrackupFileSystemObjects representing files and directories
@@ -260,9 +311,7 @@ module Crackup
     tempfile   = get_tempfile()
     remotefile = @options[:to] + '/.crackup_index'
   
-    File.open(tempfile, 'w') do |file|
-      YAML.dump(@local_files, file)
-    end
+    File.open(tempfile, 'wb') {|file| Marshal.dump(@local_files, file) }
     
     oldfile  = tempfile
     tempfile = get_tempfile()
@@ -273,18 +322,21 @@ module Crackup
       encrypt_file(oldfile, tempfile)
     end
     
-    success = false
+    begin
+      success = @driver.put(remotefile, tempfile)
+    rescue => e
+      tryagain = prompt('Unable to update remote index. Try again? (y/n)')
     
-    while success == false do
-      begin
-        success = @driver.put(remotefile, tempfile)
-      rescue => e
-        tryagain = prompt('Unable to update remote index. Try again? (y/n)')
-      
-        unless tryagain.downcase == 'y'
-          abort
-        end
-      end
+      retry if tryagain.downcase == 'y'
+      raise CrackupIndexError, "Unable to update remote index: #{e}"
     end
   end
+  
+  # -- Error Classes -----------------------------------------------------------
+  
+  class CrackupError < StandardError; end
+  class CrackupCompressionError < CrackupError; end
+  class CrackupEncryptionError < CrackupError; end
+  class CrackupIndexError < CrackupError; end
+  class CrackupStorageError < CrackupError; end
 end

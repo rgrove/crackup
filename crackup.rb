@@ -9,8 +9,8 @@
 # License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
 #
 
-require 'lib/Crackup'
 require 'optparse'
+require "#{File.dirname(__FILE__)}/lib/Crackup"
 
 module Crackup
   APP_NAME      = 'crackup'
@@ -20,6 +20,7 @@ module Crackup
   
   @options = {
     :from       => ['.'],
+    :exclude    => [],
     :passphrase => nil,
     :to         => nil,
     :verbose    => false
@@ -47,6 +48,24 @@ module Crackup
     optparse.on '-v', '--verbose',
         'Verbose output' do
       @options[:verbose] = true
+    end
+    
+    optparse.on '-x', '--exclude <file>',
+        'Exclude files and directories whose names match the',
+        'list in the specified file' do |filename|
+      unless File.file?(filename)
+        error "Exclusion list does not exist: #{filename}"
+      end
+      
+      unless File.readable?(filename)
+        error "Exclusion list is not readable: #{filename}"
+      end
+      
+      begin
+        @options[:exclude] = File.readlines(filename)
+      rescue => e
+        error "Error reading exclusion file: #{e}"
+      end
     end
     
     optparse.on_tail '-h', '--help',
@@ -90,11 +109,21 @@ module Crackup
   
   # Get the list of remote files and directories.
   debug 'Retrieving remote file list...'
-  @remote_files = get_remote_files(@options[:to])
+  
+  begin
+    @remote_files = get_remote_files(@options[:to])
+  rescue => e
+    error e
+  end
   
   # Build a list of local files and directories.
   debug 'Building local file list...'
-  @local_files = get_local_files()
+  
+  begin
+    @local_files = get_local_files()
+  rescue => e
+    error e
+  end
   
   # Determine differences.
   debug 'Determining differences...'  
@@ -104,19 +133,34 @@ module Crackup
   # Remove files from the remote location if necessary.
   unless remove.empty?
     debug 'Removing stale files from remote location...'
-    remove_files(remove)
+    
+    begin
+      remove_files(remove)
+    rescue => e
+      error e
+    end
   end
   
   # Update files at the remote location if necessary.
   unless update.empty?
     debug 'Updating remote location with new/changed files...'
-    update_files(update)
+    
+    begin
+      update_files(update)
+    rescue => e
+      error e
+    end
   end
   
   # Update the remote file index if necessary.
   unless remove.empty? && update.empty?
     debug 'Updating remote index...'
-    update_remote_index
+    
+    begin
+      update_remote_index
+    rescue => e
+      error e
+    end
   end
   
   debug 'Finished!'
