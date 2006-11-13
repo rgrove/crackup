@@ -1,6 +1,13 @@
 require 'fileutils'
 
 module Crackup
+
+  # Filesystem storage driver for Crackup.
+  # 
+  # Author::    Ryan Grove (mailto:ryan@wonko.com)
+  # Copyright:: Copyright (c) 2006 Ryan Grove. All rights reserved.
+  # License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
+  # 
   class CrackupDriverFile < CrackupDriver
     def delete(url)
       File.delete(get_path(url))
@@ -17,20 +24,35 @@ module Crackup
       return true
     end
     
-    private
+    #private
     
+    # Gets the filesystem path represented by <em>url</em>. This method is
+    # capable of parsing URLs in any of the following formats:
+    # 
+    # - file:///foo/bar
+    # - file://c:/foo/bar
+    # - c:/foo/bar
+    # - /foo/bar
+    # - //smbhost/foo/bar
     def get_path(url)
       uri  = URI::parse(url)
       path = ''
       
-      unless uri.host.nil?
-        path = "#{uri.host}:"
+      if uri.scheme =~ /^[a-z]$/i
+        # Windows drive letter.
+        path = uri.scheme + ':'
+      elsif uri.host =~ /^[a-z]$/i
+        # Windows drive letter.
+        path = uri.host + ':'
+      elsif uri.scheme.nil? && !uri.host.nil?
+        # SMB share.
+        path = '//' + uri.host
       end
       
       return path += uri.path
       
       rescue URI::InvalidURIError => e
-        abort "Invalid URL: #{url}"
+        Crackup::error "Invalid URL: #{url}"
     end
   end
 end

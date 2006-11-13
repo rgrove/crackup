@@ -7,11 +7,22 @@ require "#{File.dirname(__FILE__)}/CrackupDirectory"
 require "#{File.dirname(__FILE__)}/CrackupDriver"
 require "#{File.dirname(__FILE__)}/CrackupFile"
 
-# Provides core functionality for Crackup.
+# Crackup (Crappy Remote Backup) is a pretty simple, pretty secure remote
+# backup solution for folks who want to keep their data securely backed up but
+# aren't particularly concerned about bandwidth usage.
+# 
+# Crackup is ideal for backing up lots of small files, but somewhat less ideal
+# for backing up large files, since any change to a file means the entire file
+# must be transferred. If you need something bandwidth-efficient, try Duplicity.
+# 
+# Backups are compressed and encrypted via GPG and can be transferred to the
+# remote location over a variety of protocols, including FTP.
+#
+# Requires Ruby 1.8.5+ and GPG 1.4.2+
 # 
 # Author::    Ryan Grove (mailto:ryan@wonko.com)
 # Copyright:: Copyright (c) 2006 Ryan Grove. All rights reserved.
-# License::   BSD License
+# License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
 module Crackup
   GPG_DECRYPT = 'echo :passphrase | gpg --batch --quiet --no-tty --no-secmem-warning --cipher-algo aes256 --compress-algo bzip2 --passphrase-fd 0 --output :output_file :input_file'
   GPG_ENCRYPT = 'echo :passphrase | gpg --batch --quiet --no-tty --no-secmem-warning --cipher-algo aes256 --compress-algo bzip2 --passphrase-fd 0 --output :output_file --symmetric :input_file'
@@ -37,7 +48,7 @@ module Crackup
   
   # Reads <em>infile</em> and decompresses it to <em>outfile</em> using zlib
   # compression.
-  def self.decompress_file(infile, outfile)  
+  def self.decompress_file(infile, outfile)
     Zlib::GzipReader.open(infile) do |input|
       File.open(outfile, 'wb') do |output|
         while data = input.read(1048576) do
@@ -49,6 +60,8 @@ module Crackup
   
   # Calls GPG to decrypt <em>infile</em> to <em>outfile</em>.
   def self.decrypt_file(infile, outfile)
+    File.delete(outfile) if File.exist?(outfile)
+
     gpg_command = String.new(GPG_DECRYPT)
     gpg_command.gsub!(':input_file', escapeshellarg(infile))
     gpg_command.gsub!(':output_file', escapeshellarg(outfile))
@@ -63,6 +76,8 @@ module Crackup
   
   # Calls GPG to encrypt <em>infile</em> to <em>outfile</em>.
   def self.encrypt_file(infile, outfile)
+    File.delete(outfile) if File.exist?(outfile)
+
     gpg_command = String.new(GPG_ENCRYPT)
     gpg_command.gsub!(':input_file', escapeshellarg(infile))
     gpg_command.gsub!(':output_file', escapeshellarg(outfile))
@@ -71,13 +86,36 @@ module Crackup
     system gpg_command
   end
   
+  # Prints the specified <em>message</em> to stderr and exits with an error
+  # code of 1.
+  def self.error(message)
+    abort "Error: #{message}"
+  end
+  
   # Wraps <em>arg</em> in single quotes, escaping any single quotes contained
   # therein, thus making it safe for use as a shell argument.
   def self.escapeshellarg(arg)
     return "'#{arg.gsub("'", "\\'")}'"
   end
   
+  # Searches the remote file index for a file whose local filename matches
+  # <em>filename</em> and returns it if found, or <em>nil</em> otherwise.
   def self.find_remote_file(filename)
+    filename.chomp!('/')
+    
+    if @remote_files.has_key?(filename)
+      return @remote_files[filename]
+    end
+    
+    @remote_files.each do |name, file|
+      next unless file.is_a?(CrackupDirectory)
+      
+      if child = file.find(filename)
+        return child
+      end
+    end
+    
+    return nil
   end
   
   # Gets a SortedSet of CrackupFileSystemObjects representing the files and
@@ -103,11 +141,11 @@ module Crackup
   end
   
   # Gets a SortedSet of CrackupFileSystemObjects present at the remote location.
-  def self.get_remote_files
+  def self.get_remote_files(url)
     tempfile = get_tempfile()
     
     begin
-      @driver.get(@options[:to] + '/.crackup_index', tempfile)
+      @driver.get(url + '/.crackup_index', tempfile)
     rescue => e
       return {}
     end

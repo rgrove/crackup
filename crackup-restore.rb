@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 #
-# crackup.rb - command-line tool for performing Crackup backups. See 
-# <tt>crackup -h</tt> for usage information.
+# crackup-restore.rb - command-line tool for restoring files from Crackup
+# backups. See <tt>crackup-restore -h</tt> for usage information.
 #
 # Author::    Ryan Grove (mailto:ryan@wonko.com)
 # Version::   0.1-svn
@@ -13,13 +13,15 @@ require 'lib/Crackup'
 require 'optparse'
 
 module Crackup
-  APP_NAME      = 'crackup'
+  APP_NAME      = 'crackup-restore'
   APP_VERSION   = '0.1-svn'
   APP_COPYRIGHT = 'Copyright (c) 2006 Ryan Grove (ryan@wonko.com). All rights reserved.'
   APP_URL       = 'http://wonko.com/software/crackup'
   
   @options = {
-    :from       => ['.'],
+    :all        => false,
+    :from       => nil,
+    :only       => [],
     :passphrase => nil,
     :to         => nil,
     :verbose    => false
@@ -29,8 +31,14 @@ module Crackup
     optparse.summary_width  = 24
     optparse.summary_indent = '  '
     
-    optparse.banner = 'Usage: crackup -t <url> [-p <pass>] [-v] [<file|dir> ...]'
+    optparse.banner = 'Usage: crackup-restore -f <url> [-p <pass>] [-v] [<file|dir> ...]'
     optparse.separator ''
+    
+    optparse.on '-f', '--from <url>',
+        'Remote URL to restore from (e.g.,',
+        'ftp://user:pass@server.com/path)' do |url|
+      @options[:from] = url.gsub("\\", '/').chomp('/')
+    end
     
     optparse.on '-p', '--passphrase <pass>',
         'Encryption passphrase (if not specified, no',
@@ -38,10 +46,9 @@ module Crackup
       @options[:passphrase] = passphrase
     end
     
-    optparse.on '-t', '--to <url>',
-        'Destination URL (e.g.,',
-        'ftp://user:pass@server.com/path)' do |url|
-      @options[:to] = url.gsub("\\", '/').chomp('/')
+    optparse.on '-t', '--to <path>',
+        'Destination root directory for the restored files' do |path|
+      @options[:to] = path.chomp('/')
     end
     
     optparse.on '-v', '--verbose',
@@ -76,47 +83,37 @@ module Crackup
     abort("Error: #{e}")
   end
   
-  # Add files to the "from" array.
-  if ARGV.length
-    @options[:from] = []
+  # Add files to the "only" array.
+  if ARGV.length > 0
+    @options[:only] = []
     
     while filename = ARGV.shift
-      @options[:from] << filename.chomp('/')
+      @options[:only] << filename.chomp('/')
     end
+  else
+    @options[:all] = true
   end
   
   # Load driver.
-  @driver = CrackupDriver::get_driver(@options[:to])
+  @driver = CrackupDriver::get_driver(@options[:from])
   
   # Get the list of remote files and directories.
   debug 'Retrieving remote file list...'
-  @remote_files = get_remote_files(@options[:to])
+  @remote_files = get_remote_files(@options[:from])
   
-  # Build a list of local files and directories.
-  debug 'Building local file list...'
-  @local_files = get_local_files()
-  
-  # Determine differences.
-  debug 'Determining differences...'  
-  update = get_updated_files(@local_files, @remote_files)
-  remove = get_removed_files(@local_files, @remote_files)
+  # Restore files.
+  debug 'Restoring files...'
 
-  # Remove files from the remote location if necessary.
-  unless remove.empty?
-    debug 'Removing stale files from remote location...'
-    remove_files(remove)
-  end
-  
-  # Update files at the remote location if necessary.
-  unless update.empty?
-    debug 'Updating remote location with new/changed files...'
-    update_files(update)
-  end
-  
-  # Update the remote file index if necessary.
-  unless remove.empty? && update.empty?
-    debug 'Updating remote index...'
-    update_remote_index
+  if @options[:all]
+    @remote_files.each_value {|file| file.restore(@options[:to]) }
+  else
+    @options[:only].each do |filename|
+      unless file = find_remote_file(filename)
+        error "Remote file not found: #{filename}"
+      end
+      
+      file.restore(@options[:to])
+    end
   end
   
   debug 'Finished!'
