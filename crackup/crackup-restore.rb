@@ -12,12 +12,12 @@
 require 'optparse'
 require "#{File.dirname(__FILE__)}/lib/Crackup"
 
-module Crackup
-  APP_NAME      = 'crackup-restore'
-  APP_VERSION   = '0.1-svn'
-  APP_COPYRIGHT = 'Copyright (c) 2006 Ryan Grove (ryan@wonko.com). All rights reserved.'
-  APP_URL       = 'http://wonko.com/software/crackup'
+APP_NAME      = 'crackup-restore'
+APP_VERSION   = '0.1-svn'
+APP_COPYRIGHT = 'Copyright (c) 2006 Ryan Grove (ryan@wonko.com). All rights reserved.'
+APP_URL       = 'http://wonko.com/software/crackup'
   
+module Crackup
   @options = {
     :all        => false,
     :from       => nil,
@@ -32,7 +32,7 @@ module Crackup
     optparse.summary_width  = 24
     optparse.summary_indent = '  '
     
-    optparse.banner = "Usage: crackup-restore -f <url> [-p <pass>] [-v] [-l | <file|dir> ...]"
+    optparse.banner = "Usage: #{File.basename(__FILE__)} -f <url> [-p <pass>] [-v] [-l | <file|dir> ...]"
     optparse.separator ''
     
     optparse.on '-f', '--from <url>',
@@ -101,7 +101,11 @@ module Crackup
   end
   
   # Load driver.
-  @driver = CrackupDriver::get_driver(@options[:from])
+  begin
+    @driver = CrackupDriver::get_driver(@options[:from])
+  rescue => e
+    error e
+  end
   
   # Get the list of remote files and directories.
   debug 'Retrieving remote file list...'
@@ -121,16 +125,22 @@ module Crackup
   # Restore files.
   debug 'Restoring files...'
 
-  if @options[:all]
-    @remote_files.each_value {|file| file.restore(@options[:to]) }
-  else
-    @options[:only].each do |filename|
-      unless file = find_remote_file(filename)
-        error "Remote file not found: #{filename}"
-      end
+  begin
+    if @options[:all]
+      @remote_files.each_value {|file| file.restore(@options[:to]) }
+    else
+      @options[:only].each do |pattern|
+        files = find_remote_files(pattern)
       
-      file.restore(@options[:to])
+        if files.empty?
+          error "Remote file not found: #{pattern}"
+        end
+        
+        files.each {|file| file.restore(@options[:to]) }
+      end
     end
+  rescue => e
+    error e
   end
   
   debug 'Finished!'

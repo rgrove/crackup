@@ -15,21 +15,25 @@ module Crackup
       refresh_children
     end
     
-    # Searches all child files and directories for a file or directory with the
-    # specified <em>filename</em>. Returns the file or directory if found, or
-    # <em>nil</em> if not found.
-    def find(filename)
-      return @children[filename] if @children.has_key?(filename)
-    
+    # Gets an array of files contained in this directory or its children whose
+    # local filenames match <em>pattern</em>.
+    def find(pattern)
+      files = []
+      
       @children.each do |name, child|
+        if File.fnmatch?(pattern, child.name)
+          files << child
+          next
+        end
+        
         next unless child.is_a?(CrackupDirectory)
         
-        if result = child.find(filename)
-          return result
+        if result = child.find(pattern)
+          files << result
         end
       end
       
-      return nil
+      return files
     end
 
     # Builds a Hash of child objects by analyzing the local filesystem. A
@@ -60,7 +64,7 @@ module Crackup
       end
     end
 
-    # Removes the remote copies of this directory and all its children.
+    # Removes the remote copy of this directory and all its children.
     def remove
       @children.each_value {|child| child.remove }
     end
