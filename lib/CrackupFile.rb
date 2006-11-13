@@ -46,18 +46,13 @@ module Crackup
         begin
           FileUtils.mkdir_p(path)
         rescue => e
-          Crackup::error "Unable to create local directory: #{path}"
+          raise CrackupError, "Unable to create local directory: #{path}"
         end
       end
       
       # Download the remote file.
       tempfile = Crackup::get_tempfile()
-      
-      begin
-        Crackup::driver.get(@url, tempfile)
-      rescue => e
-        Crackup::error "Unable to restore file: #{filename}"
-      end
+      Crackup::driver.get(@url, tempfile)
       
       # Decompress/decrypt the file.
       if Crackup::options[:passphrase].nil?
@@ -81,11 +76,7 @@ module Crackup
       end
       
       # Upload the file.
-      begin
-        Crackup::driver.put(@url, tempfile)
-      rescue => e
-        Crackup::error "Unable to upload file: #{@name}"
-      end
+      Crackup::driver.put(@url, tempfile)
     end
   end
 end

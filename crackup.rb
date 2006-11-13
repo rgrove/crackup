@@ -12,12 +12,12 @@
 require 'optparse'
 require "#{File.dirname(__FILE__)}/lib/Crackup"
 
+APP_NAME      = 'crackup'
+APP_VERSION   = '0.1-svn'
+APP_COPYRIGHT = 'Copyright (c) 2006 Ryan Grove (ryan@wonko.com). All rights reserved.'
+APP_URL       = 'http://wonko.com/software/crackup'
+
 module Crackup
-  APP_NAME      = 'crackup'
-  APP_VERSION   = '0.1-svn'
-  APP_COPYRIGHT = 'Copyright (c) 2006 Ryan Grove (ryan@wonko.com). All rights reserved.'
-  APP_URL       = 'http://wonko.com/software/crackup'
-  
   @options = {
     :from       => ['.'],
     :exclude    => [],
@@ -30,7 +30,7 @@ module Crackup
     optparse.summary_width  = 24
     optparse.summary_indent = '  '
     
-    optparse.banner = 'Usage: crackup -t <url> [-p <pass>] [-v] [<file|dir> ...]'
+    optparse.banner = "Usage: #{File.basename(__FILE__)} -t <url> [-p <pass>] [-v] [<file|dir> ...]"
     optparse.separator ''
     
     optparse.on '-p', '--passphrase <pass>',
@@ -105,7 +105,11 @@ module Crackup
   end
   
   # Load driver.
-  @driver = CrackupDriver::get_driver(@options[:to])
+  begin
+    @driver = CrackupDriver::get_driver(@options[:to])
+  rescue => e
+    error e
+  end
   
   # Get the list of remote files and directories.
   debug 'Retrieving remote file list...'
