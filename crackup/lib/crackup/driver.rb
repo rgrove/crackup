@@ -6,7 +6,7 @@ module Crackup
   # 
   # To write a Crackup storage driver, create a class named "CrackupDriverFoo"
   # where "Foo" is the URI scheme (e.g., "ftp", "sftp", etc.) and place your
-  # class in Crackup's <tt>drivers</tt> directory. Your class must inherit
+  # class in Crackup's <tt>lib/drivers</tt> directory. Your class must inherit
   # CrackupDriver and should override at least the delete, get, and put
   # methods.
   # 
@@ -33,7 +33,7 @@ module Crackup
       end
       
       driver_class = "CrackupDriver#{scheme}"
-      driver_file  = File.dirname(__FILE__) + "/../drivers/#{driver_class}.rb"
+      driver_file  = File.dirname(__FILE__) + "/drivers/#{driver_class}.rb"
       
       # Load the driver.
       unless require(driver_file)

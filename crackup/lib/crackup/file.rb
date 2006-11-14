@@ -39,7 +39,7 @@ module Crackup
       path     = path.chomp('/') + '/' + File.dirname(@name).delete(':')
       filename = path + '/' + File.basename(@name)
 
-      Crackup::debug '--> ' + filename
+      Crackup::debug "--> #{filename}"
       
       # Create the path if it doesn't exist.
       unless File.directory?(path)
@@ -64,7 +64,7 @@ module Crackup
     
     # Uploads this file to the remote location.
     def update
-      Crackup::debug '--> ' + @name
+      Crackup::debug "--> #{@name}"
       
       # Compress/encrypt the file.
       tempfile = Crackup::get_tempfile()
