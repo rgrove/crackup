@@ -1,19 +1,19 @@
 #!/usr/bin/env ruby
 #
-# crackup-restore.rb - command-line tool for restoring files from Crackup
-# backups. See <tt>crackup-restore -h</tt> for usage information.
+# crackup-restore - command-line tool for restoring files from Crackup backups.
+# See <tt>crackup-restore -h</tt> for usage information.
 #
 # Author::    Ryan Grove (mailto:ryan@wonko.com)
-# Version::   0.1-svn
+# Version::   1.0.0
 # Copyright:: Copyright (c) 2006 Ryan Grove. All rights reserved.
 # License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
 #
 
+require 'crackup'
 require 'optparse'
-require "#{File.dirname(__FILE__)}/lib/Crackup"
 
 APP_NAME      = 'crackup-restore'
-APP_VERSION   = '0.1-svn'
+APP_VERSION   = '1.0.0'
 APP_COPYRIGHT = 'Copyright (c) 2006 Ryan Grove (ryan@wonko.com). All rights reserved.'
 APP_URL       = 'http://wonko.com/software/crackup'
   
@@ -24,7 +24,7 @@ module Crackup
     :list       => false,
     :only       => [],
     :passphrase => nil,
-    :to         => nil,
+    :to         => '.',
     :verbose    => false
   }
   
@@ -102,7 +102,7 @@ module Crackup
   
   # Load driver.
   begin
-    @driver = CrackupDriver::get_driver(@options[:from])
+    @driver = Crackup::Driver.get_driver(@options[:from])
   rescue => e
     error e
   end

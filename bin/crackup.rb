@@ -1,19 +1,19 @@
 #!/usr/bin/env ruby
 #
-# crackup.rb - command-line tool for performing Crackup backups. See 
+# crackup - command-line tool for performing Crackup backups. See 
 # <tt>crackup -h</tt> for usage information.
 #
 # Author::    Ryan Grove (mailto:ryan@wonko.com)
-# Version::   0.1-svn
+# Version::   1.0.0
 # Copyright:: Copyright (c) 2006 Ryan Grove. All rights reserved.
 # License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
 #
 
+require 'crackup'
 require 'optparse'
-require "#{File.dirname(__FILE__)}/lib/Crackup"
 
 APP_NAME      = 'crackup'
-APP_VERSION   = '0.1-svn'
+APP_VERSION   = '1.0.0'
 APP_COPYRIGHT = 'Copyright (c) 2006 Ryan Grove (ryan@wonko.com). All rights reserved.'
 APP_URL       = 'http://wonko.com/software/crackup'
 
@@ -107,7 +107,7 @@ module Crackup
   
   # Load driver.
   begin
-    @driver = CrackupDriver::get_driver(@options[:to])
+    @driver = Crackup::Driver.get_driver(@options[:to])
   rescue => e
     error e
   end

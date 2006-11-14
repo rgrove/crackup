@@ -3,7 +3,7 @@ require 'digest/sha2'
 module Crackup
   
   # Represents a filesystem object on the local filesystem.
-  class CrackupFileSystemObject
+  module FileSystemObject
     attr_reader :name, :name_hash
     
     def initialize(name)
@@ -11,10 +11,8 @@ module Crackup
       @name_hash = Digest::SHA256.hexdigest(name)
     end
     
-    def remove
-    end
-    
-    def restore(local_path)
-    end
+    def remove; end
+    def restore(local_path); end
   end
+
 end

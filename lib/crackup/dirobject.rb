@@ -1,8 +1,12 @@
+require 'crackup/fsobject'
+
 module Crackup
 
   # Represents a directory on the local filesystem. Can contain any number of
   # CrackupFileSystemObjects as children.
-  class CrackupDirectory < CrackupFileSystemObject
+  class DirectoryObject
+    include FileSystemObject
+
     attr_reader :children
 
     def initialize(name)
@@ -26,7 +30,7 @@ module Crackup
           next
         end
         
-        next unless child.is_a?(CrackupDirectory)
+        next unless child.is_a?(Crackup::DirectoryObject)
         
         if result = child.find(pattern)
           files << result
@@ -56,9 +60,9 @@ module Crackup
           end
 
           if File.directory?(filename)
-            @children[filename.chomp('/')] = CrackupDirectory.new(filename)
+            @children[filename.chomp('/')] = Crackup::DirectoryObject.new(filename)
           elsif File.file?(filename)
-            @children[filename] = CrackupFile.new(filename)
+            @children[filename] = Crackup::FileObject.new(filename)
           end
         end
       end
@@ -80,4 +84,5 @@ module Crackup
       @children.each_value {|child| child.update }
     end
   end
+
 end

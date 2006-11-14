@@ -1,6 +1,8 @@
+require 'crackup/driver'
 require 'fileutils'
+require 'uri'
 
-module Crackup
+module Crackup; module Driver
 
   # Filesystem storage driver for Crackup.
   # 
@@ -8,7 +10,8 @@ module Crackup
   # Copyright:: Copyright (c) 2006 Ryan Grove. All rights reserved.
   # License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
   # 
-  class CrackupDriverFile < CrackupDriver
+  class FileDriver
+    include Driver
   
     # Deletes the file at the specified <em>url</em>.
     def delete(url)
@@ -16,7 +19,7 @@ module Crackup
       return true
       
     rescue => e
-      raise CrackupStorageError, "Unable to delete #{url}: #{e}"
+      raise Crackup::StorageError, "Unable to delete #{url}: #{e}"
     end
     
     # Downloads the file at <em>url</em> to <em>local_filename</em>.
@@ -25,7 +28,7 @@ module Crackup
       return true
     
     rescue => e
-      raise CrackupStorageError, "Unable to get #{url}: #{e}"
+      raise Crackup::StorageError, "Unable to get #{url}: #{e}"
     end
     
     # Gets the filesystem path represented by <em>url</em>. This method is
@@ -54,7 +57,7 @@ module Crackup
       return path += uri.path
       
     rescue => e
-      raise CrackupStorageError, "Invalid URL: #{url}"
+      raise Crackup::StorageError, "Invalid URL: #{url}"
     end
     
     # Uploads the file at <em>local_filename</em> to <em>url</em>.
@@ -63,7 +66,8 @@ module Crackup
       return true
       
     rescue => e
-      raise CrackupStorageError, "Unable to put #{url}: #{e}"
+      raise Crackup::StorageError, "Unable to put #{url}: #{e}"
     end
   end
-end
+
+end; end

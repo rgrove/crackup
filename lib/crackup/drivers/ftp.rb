@@ -1,7 +1,8 @@
+require 'crackup/driver'
 require 'net/ftp'
 require 'uri'
 
-module Crackup
+module Crackup; module Driver
 
   # FTP storage driver for Crackup.
   # 
@@ -9,7 +10,8 @@ module Crackup
   # Copyright:: Copyright (c) 2006 Ryan Grove. All rights reserved.
   # License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
   # 
-  class CrackupDriverFtp < CrackupDriver
+  class FtpDriver
+    include Driver
   
     # Connects to the FTP server specified in <em>url</em>.
     def initialize(url)
@@ -19,7 +21,7 @@ module Crackup
       begin
         uri = URI::parse(url)
       rescue => e
-        raise CrackupStorageError, "Invalid URL: #{url}: #{e}"
+        raise Crackup::StorageError, "Invalid URL: #{url}: #{e}"
       end
       
       @ftp = Net::FTP.new
@@ -28,13 +30,13 @@ module Crackup
       begin
         @ftp.connect(uri.host, uri.port.nil? ? 21 : uri.port)
       rescue => e
-        raise CrackupStorageError, "FTP connect failed: #{e}"
+        raise Crackup::StorageError, "FTP connect failed: #{e}"
       end
       
       begin
         @ftp.login(uri.user.nil? ? 'anonymous' : uri.user, uri.password)
       rescue => e
-        raise CrackupStorageError, "FTP login failed: #{e}"
+        raise Crackup::StorageError, "FTP login failed: #{e}"
       end
     end
 
@@ -44,7 +46,7 @@ module Crackup
       return true
       
     rescue => e
-      raise CrackupStorageError, "Unable to delete #{url}: #{e}"
+      raise Crackup::StorageError, "Unable to delete #{url}: #{e}"
     end
     
     # Downloads the file at <em>url</em> to <em>local_filename</em>.
@@ -53,7 +55,7 @@ module Crackup
       return true
     
     rescue => e
-      raise CrackupStorageError, "Unable to download #{url}: #{e}"
+      raise Crackup::StorageError, "Unable to download #{url}: #{e}"
     end
     
     # Uploads the file at <em>local_filename</em> to <em>url</em>.
@@ -62,7 +64,8 @@ module Crackup
       return true
       
     rescue => e
-      raise CrackupStorageError, "Unable to upload #{url}: #{e}"
+      raise Crackup::StorageError, "Unable to upload #{url}: #{e}"
     end
   end
-end
+
+end; end
