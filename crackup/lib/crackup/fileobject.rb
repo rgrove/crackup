@@ -1,10 +1,13 @@
+require 'crackup/fsobject'
 require 'digest/sha2'
 require 'fileutils'
 
 module Crackup
 
   # Represents a file on the local filesystem.
-  class CrackupFile < CrackupFileSystemObject
+  class FileObject
+    include FileSystemObject
+
     attr_reader :file_hash, :url
   
     def initialize(filename)
@@ -24,13 +27,13 @@ module Crackup
       end
 
       @file_hash = digest.hexdigest()
-      @url       = "#{Crackup::driver.url}/crackup_#{@name_hash}"
+      @url       = "#{Crackup.driver.url}/crackup_#{@name_hash}"
     end
     
     # Removes this file from the remote location.
     def remove
-      Crackup::debug "--> #{@name}"
-      Crackup::driver.delete(@url)
+      Crackup.debug "--> #{@name}"
+      Crackup.driver.delete(@url)
     end
 
     # Restores the remote copy of this file to the local path specified by
@@ -39,44 +42,45 @@ module Crackup
       path     = path.chomp('/') + '/' + File.dirname(@name).delete(':')
       filename = path + '/' + File.basename(@name)
 
-      Crackup::debug "--> #{filename}"
+      Crackup.debug "--> #{filename}"
       
       # Create the path if it doesn't exist.
       unless File.directory?(path)
         begin
           FileUtils.mkdir_p(path)
         rescue => e
-          raise CrackupError, "Unable to create local directory: #{path}"
+          raise Crackup::Error, "Unable to create local directory: #{path}"
         end
       end
       
       # Download the remote file.
-      tempfile = Crackup::get_tempfile()
-      Crackup::driver.get(@url, tempfile)
+      tempfile = Crackup.get_tempfile()
+      Crackup.driver.get(@url, tempfile)
       
       # Decompress/decrypt the file.
-      if Crackup::options[:passphrase].nil?
-        Crackup::decompress_file(tempfile, filename)
+      if Crackup.options[:passphrase].nil?
+        Crackup.decompress_file(tempfile, filename)
       else
-        Crackup::decrypt_file(tempfile, filename)
+        Crackup.decrypt_file(tempfile, filename)
       end
     end
     
     # Uploads this file to the remote location.
     def update
-      Crackup::debug "--> #{@name}"
+      Crackup.debug "--> #{@name}"
       
       # Compress/encrypt the file.
-      tempfile = Crackup::get_tempfile()
+      tempfile = Crackup.get_tempfile()
       
-      if Crackup::options[:passphrase].nil?
-        Crackup::compress_file(@name, tempfile)
+      if Crackup.options[:passphrase].nil?
+        Crackup.compress_file(@name, tempfile)
       else
-        Crackup::encrypt_file(@name, tempfile)
+        Crackup.encrypt_file(@name, tempfile)
       end
       
       # Upload the file.
-      Crackup::driver.put(@url, tempfile)
+      Crackup.driver.put(@url, tempfile)
     end
   end
+
 end

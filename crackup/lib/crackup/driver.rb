@@ -2,78 +2,79 @@ require 'uri'
 
 module Crackup
 
-  # Base storage driver class for Crackup.
+  # Base storage driver module for Crackup.
   # 
-  # To write a Crackup storage driver, create a class named "CrackupDriverFoo"
-  # where "Foo" is the URI scheme (e.g., "ftp", "sftp", etc.) and place your
-  # class in Crackup's <tt>lib/drivers</tt> directory. Your class must inherit
-  # CrackupDriver and should override at least the delete, get, and put
-  # methods.
+  # To write a Crackup storage driver:
   # 
-  # See CrackupDriverFile and CrackupDriverFtp for examples.
-  class CrackupDriver
+  # - Create a class in Crackup::Driver named "FooDriver", where "Foo" is the
+  #   capitalized version of the URI scheme your driver will handle (e.g.,
+  #   "Ftp", "Sftp", etc.).
+  # - Name your class file <tt>foo.rb</tt> ("foo" being the lowercase URI scheme
+  #   this time) and place it in Crackup's <tt>lib/crackup/drivers</tt>
+  #   directory.
+  # - In your class, mixin the Crackup::Driver module and override at least the
+  #   delete, get, and put methods.
+  #   
+  # That's all there is to it. See Crackup::Driver::FileDriver and
+  # Crackup::Driver::FtpDriver for examples.
+  module Driver
     attr_reader :url
     
     # Gets an instance of the appropriate storage driver to handle the specified
-    # <em>url</em>. If no suitable driver is found, raises an error of type
-    # CrackupStorageError.
+    # _url_. If no suitable driver is found, raises a Crackup::StorageError.
     def self.get_driver(url)
       begin
         uri = URI::parse(url)
       rescue => e
-        raise CrackupStorageError, "Invalid URL: #{url}: #{e}"
+        raise Crackup::StorageError, "Invalid URL: #{url}: #{e}"
       end
       
       # Use the filesystem driver if no scheme is specified or if the scheme is
       # a single letter (which indicates a Windows drive letter).
       if uri.scheme.nil? || uri.scheme =~ /^[a-z]$/i
-        scheme = 'File'
+        scheme = 'file'
       else
-        scheme = uri.scheme.capitalize
+        scheme = uri.scheme.downcase
       end
-      
-      driver_class = "CrackupDriver#{scheme}"
-      driver_file  = File.dirname(__FILE__) + "/drivers/#{driver_class}.rb"
       
       # Load the driver.
-      unless require(driver_file)
-        raise CrackupStorageError, "Driver not found: #{uri.scheme}"
+      unless require(File.dirname(__FILE__) + "/drivers/#{scheme}")
+        raise Crackup::StorageError, "Driver not found for scheme '#{uri.scheme}'"
       end
       
-      return Crackup::const_get(driver_class).new(url)
+      return const_get("#{scheme.capitalize}Driver").new(url)
     end
     
     def initialize(url)
       @url = url
     end
     
-    # Deletes the file at the specified <em>url</em>. This method does nothing
-    # and is intended to be overridden by an inheriting driver class.
+    # Deletes the file at the specified _url_. This method does nothing and is
+    # intended to be overridden by a driver class.
     def delete(url)
       return false
     end
     
-    # Downloads the file at <em>url</em> to <em>local_filename</em>. This method
-    # does nothing and is intended to be overridden by an inheriting driver
-    # class.
+    # Downloads the file at _url_ to <em>local_filename</em>. This method does
+    # nothing and is intended to be overridden by a driver class.
     def get(url, local_filename)
       return false
     end
     
-    # Gets the path portion of <em>url</em>.
+    # Gets the path portion of _url_.
     def get_path(url)
       uri = URI::parse(url)
       return uri.path
 
     rescue => e
-      raise CrackupStorageError, "Invalid URL: #{url}: #{e}"
+      raise Crackup::StorageError, "Invalid URL: #{url}: #{e}"
     end
       
-    # Uploads the file at <em>local_filename</em> to <em>url</em>. This method
-    # does nothing and is intended to be overridden by an inheriting driver
-    # class.
+    # Uploads the file at <em>local_filename</em> to _url_. This method does
+    # nothing and is intended to be overridden by a driver class.
     def put(url, local_filename)
       return false
     end
   end
+
 end

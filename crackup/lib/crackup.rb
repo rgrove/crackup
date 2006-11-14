@@ -1,31 +1,15 @@
-# Crackup (Crappy Remote Backup) is a pretty simple, pretty secure remote
-# backup solution for folks who want to keep their data securely backed up but
-# aren't particularly concerned about bandwidth usage.
-# 
-# Crackup is ideal for backing up lots of small files, but somewhat less ideal
-# for backing up large files, since any change to a file means the entire file
-# must be transferred. If you need something bandwidth-efficient, try Duplicity.
-# 
-# Backups are compressed and encrypted via GPG and can be transferred to the
-# remote location over a variety of protocols, including FTP.
-#
-# Requires Ruby 1.8.5+ and GPG 1.4.2+
-# 
-# Author::    Ryan Grove (mailto:ryan@wonko.com)
-# Copyright:: Copyright (c) 2006 Ryan Grove. All rights reserved.
-# License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
-
 ENV['PATH'] = "#{File.dirname(__FILE__)};#{ENV['PATH']}"
 
-require 'crackup/fsobject'
-require 'crackup/directory'
+require 'crackup/errors'
+require 'crackup/dirobject'
 require 'crackup/driver'
-require 'crackup/file'
+require 'crackup/fileobject'
 require 'tempfile'
 require 'yaml'
 require 'zlib'
 
 module Crackup
+
   GPG_DECRYPT = 'echo :passphrase | gpg --batch --quiet --no-tty --no-secmem-warning --cipher-algo aes256 --compress-algo bzip2 --passphrase-fd 0 --output :output_file :input_file'
   GPG_ENCRYPT = 'echo :passphrase | gpg --batch --quiet --no-tty --no-secmem-warning --cipher-algo aes256 --compress-algo bzip2 --passphrase-fd 0 --output :output_file --symmetric :input_file'
   
@@ -43,7 +27,7 @@ module Crackup
     end
     
   rescue => e
-    raise CrackupCompressionError, "Unable to compress #{infile}: #{e}"
+    raise Crackup::CompressionError, "Unable to compress #{infile}: #{e}"
   end
   
   # Prints <em>message</em> to stdout if verbose mode is enabled.
@@ -63,7 +47,7 @@ module Crackup
     end
   
   rescue => e
-    raise CrackupCompressionError, "Unable to decompress #{infile}: #{e}"
+    raise Crackup::CompressionError, "Unable to decompress #{infile}: #{e}"
   end
   
   # Calls GPG to decrypt <em>infile</em> to <em>outfile</em>.
@@ -76,7 +60,7 @@ module Crackup
     gpg_command.gsub!(':passphrase', escapeshellarg(@options[:passphrase]))
     
     unless system(gpg_command)
-      raise CrackupEncryptionError, "Unable to decrypt file: #{infile}"
+      raise Crackup::EncryptionError, "Unable to decrypt file: #{infile}"
     end
   end
   
@@ -94,7 +78,7 @@ module Crackup
     gpg_command.gsub!(':passphrase', escapeshellarg(@options[:passphrase]))
     
     unless system(gpg_command)
-      raise CrackupEncryptionError, "Unable to encrypt file: #{infile}"
+      raise Crackup::EncryptionError, "Unable to encrypt file: #{infile}"
     end
   end
   
@@ -122,7 +106,7 @@ module Crackup
         next
       end
 
-      next unless file.is_a?(CrackupDirectory)
+      next unless file.is_a?(Crackup::DirectoryObject)
 
       files += file.find(pattern)
     end
@@ -137,9 +121,9 @@ module Crackup
   
     if files.is_a?(Hash)
       files.each_value {|value| list += get_list(value) }
-    elsif files.is_a?(CrackupDirectory)
+    elsif files.is_a?(Crackup::DirectoryObject)
       list += get_list(files.children)
-    elsif files.is_a?(CrackupFile)
+    elsif files.is_a?(Crackup::FileObject)
       list << files.name 
     end
     
@@ -165,10 +149,10 @@ module Crackup
       
       if File.directory?(filename)
         debug "--> #{filename}"
-        local_files[filename] = CrackupDirectory.new(filename)
+        local_files[filename] = Crackup::DirectoryObject.new(filename)
       elsif File.file?(filename)
         debug "--> #{filename}"
-        local_files[filename] = CrackupFile.new(filename)
+        local_files[filename] = Crackup::FileObject.new(filename)
       end
     end
     
@@ -194,14 +178,14 @@ module Crackup
       begin
         decompress_file(oldfile, tempfile)
       rescue => e
-        raise CrackupIndexError, "Unable to decompress index file. Maybe " +
+        raise Crackup::IndexError, "Unable to decompress index file. Maybe " +
             "it's encrypted?"
       end
     else
       begin
         decrypt_file(oldfile, tempfile)
       rescue => e
-        raise CrackupIndexError, "Unable to decrypt index file."
+        raise Crackup::IndexError, "Unable to decrypt index file."
       end
     end
     
@@ -211,11 +195,11 @@ module Crackup
     begin
       File.open(tempfile, 'rb') {|file| file_list = Marshal.load(file) }
     rescue => e
-      raise CrackupIndexError, "Remote index is invalid!"
+      raise Crackup::IndexError, "Remote index is invalid!"
     end
     
     unless file_list.is_a?(Hash)
-      raise CrackupIndexError, "Remote index is invalid!"
+      raise Crackup::IndexError, "Remote index is invalid!"
     end
     
     return file_list
@@ -234,7 +218,8 @@ module Crackup
       
       localfile = local_files[name]
       
-      if remotefile.is_a?(CrackupDirectory) && localfile.is_a?(CrackupDirectory)
+      if remotefile.is_a?(Crackup::DirectoryObject) && 
+          localfile.is_a?(Crackup::DirectoryObject)
         removed += get_removed_files(localfile.children, remotefile.children)
       end
     end
@@ -266,11 +251,13 @@ module Crackup
       
       remotefile = remote_files[name]
       
-      if localfile.is_a?(CrackupDirectory) && remotefile.is_a?(CrackupDirectory)
+      if localfile.is_a?(Crackup::DirectoryObject) && 
+          remotefile.is_a?(Crackup::DirectoryObject)
         # Add to the list all updated files contained in the directory and its 
         # subdirectories.
         updated += get_updated_files(localfile.children, remotefile.children)
-      elsif localfile.is_a?(CrackupFile) && remotefile.is_a?(CrackupFile)
+      elsif localfile.is_a?(Crackup::FileObject) && 
+          remotefile.is_a?(Crackup::FileObject)
         # Add the file to the list if the local file has been modified.
         unless localfile.file_hash == remotefile.file_hash
           updated << localfile
@@ -330,13 +317,8 @@ module Crackup
       tryagain = prompt('Unable to update remote index. Try again? (y/n)')
     
       retry if tryagain.downcase == 'y'
-      raise CrackupIndexError, "Unable to update remote index: #{e}"
+      raise Crackup::IndexError, "Unable to update remote index: #{e}"
     end
   end
   
-  class CrackupError < StandardError; end
-  class CrackupCompressionError < CrackupError; end
-  class CrackupEncryptionError < CrackupError; end
-  class CrackupIndexError < CrackupError; end
-  class CrackupStorageError < CrackupError; end
 end
