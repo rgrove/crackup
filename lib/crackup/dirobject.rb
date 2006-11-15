@@ -7,21 +7,23 @@ module Crackup
   class DirectoryObject
     include FileSystemObject
 
-    attr_reader :children, :parent_path
+    attr_reader :children, :parent_path, :timestamp
 
-    # --
-    # Class Methods
-    # ++
+    #--
+    # Public Class Methods
+    #++
     
-    def initialize(path, parent_path, children = {})
+    def initialize(path, parent_path, timestamp = Time.new.to_i, children = {})
       super(path)
       
       @parent_path = parent_path
+      @timestamp   = timestamp
       @children    = children
     end
     
     def self.from_db(row, children = {})
-      return DirectoryObject.new(row['path'], row['parent_path'], children)
+      return DirectoryObject.new(row['path'], row['parent_path'],
+          row['timestamp'], children)
     end
     
     def self.from_path(path)
@@ -35,9 +37,9 @@ module Crackup
       return dir
     end
     
-    # --
-    # Instance Methods
-    # ++
+    #--
+    # Public Instance Methods
+    #++
     
     # Gets an array of files contained in this directory or its children whose
     # local filenames match <em>pattern</em>.
@@ -58,6 +60,28 @@ module Crackup
       end
       
       return files
+    end
+    
+    def get_index_params(query_name)
+      case query_name
+        when :add
+          return {
+            ':path'        => @path,
+            ':parent_path' => @parent_path,
+            ':name'        => @name,
+            ':timestamp'   => Time.new.to_i
+          }
+        
+        when :delete
+          return {':path' => @path}
+      
+        when :update
+          return {
+            ':path'        => @path,
+            ':parent_path' => @parent_path,
+            ':timestamp'   => Time.new.to_i
+          }
+      end
     end
 
     # Refreshes children by analyzing the local filesystem.

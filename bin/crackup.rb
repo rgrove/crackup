@@ -116,7 +116,8 @@ module Crackup
   debug 'Retrieving remote file index...'
   
   begin
-    @remote_index = get_remote_index(@options[:to])
+    @remote_index = Crackup::Index.get_remote_index(
+        "#{@options[:to]}/.crackup_index")
   rescue => e
     error e
   end
@@ -124,17 +125,21 @@ module Crackup
   # Build a list of local files and directories.
   debug 'Building local file list...'
   
-#  begin
+  begin
     @local_files = get_local_files()
-#  rescue => e
-#    error e
-#  end
+  rescue => e
+    error e
+  end
   
   # Determine differences.
   debug 'Determining differences...'  
-  update = get_updated_files(@local_files, @remote_index)
-  remove = get_removed_files(@local_files, @remote_index)
-
+  begin
+    update = get_updated_files(@local_files, @remote_index)
+    remove = get_removed_files(@local_files, @remote_index)
+  rescue => e
+    error e
+  end
+  
   # Remove files from the remote location if necessary.
   unless remove.empty?
     debug 'Removing stale files from remote location...'
@@ -162,7 +167,7 @@ module Crackup
     debug 'Updating remote index...'
     
     begin
-      update_remote_index
+      @remote_index.upload("#{@options[:to]}/.crackup_index")
     rescue => e
       error e
     end

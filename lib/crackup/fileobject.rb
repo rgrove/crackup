@@ -9,11 +9,12 @@ module Crackup
   class FileObject
     include FileSystemObject
     
-    attr_reader :path, :dir_path, :ctime, :mtime, :inode, :size, :timestamp
+    attr_reader :path, :dir_path, :ctime, :mtime, :inode, :size, :timestamp,
+        :url
   
-    # --
+    #--
     # Class Methods
-    # ++
+    #++
     
     def initialize(path, dir_path, hash, ctime, mtime, inode, size,
         timestamp = Time.new.to_i)
@@ -26,6 +27,7 @@ module Crackup
       @inode     = inode
       @size      = size
       @timestamp = timestamp
+      @url       = "#{Crackup.driver.url}/crackup_#{@path_hash}"
     end
     
     # Gets a new Crackup::FileObject representing the Hash _row_, which should
@@ -37,7 +39,7 @@ module Crackup
     end
     
     # Creates a new Crackup::FileObject representing the specified local
-    # filename. 
+    # filename.
     def self.from_path(path)
       unless File.file?(path)
         raise ArgumentError, "#{path} is not a file"
@@ -53,10 +55,34 @@ module Crackup
           stat.mtime.to_i, stat.ino, stat.size)
     end
     
-    # --
+    #--
     # Instance Methods
-    # ++
+    #++
     
+    def get_index_params(query_name)
+      case query_name
+        when :add
+          return {
+            ':path'      => @path,
+            ':dir_path'  => @dir_path,
+            ':name'      => @name,
+            ':hash'      => @hash,
+            ':ctime'     => @ctime,
+            ':mtime'     => @mtime,
+            ':inode'     => @inode,
+            ':size'      => @size,
+            ':timestamp' => Time.new.to_i
+          }
+        
+        when :delete
+          return {':path' => @path}
+        
+        when :delete_by_dir_path
+          return {':dir_path' => @dir_path}
+        
+      end
+    end
+
     # Gets an SHA256 hash of the file's contents. The results of this method are
     # cached, so subsequent calls will always return the same hash. 
     def hash
@@ -78,15 +104,15 @@ module Crackup
 
     # Removes this file from the remote location.
     def remove
-      Crackup.debug "--> #{@name}"
+      Crackup.debug "--> #{@path}"
       Crackup.driver.delete(@url)
     end
 
     # Restores the remote copy of this file to the local path specified by
     # <em>path</em>.
     def restore(path)
-      path     = path.chomp('/') + '/' + File.dirname(@name).delete(':')
-      filename = path + '/' + File.basename(@name)
+      path     = path.chomp('/') + '/' + File.dirname(@path).delete(':')
+      filename = path + '/' + @name
 
       Crackup.debug "--> #{filename}"
       
@@ -113,15 +139,15 @@ module Crackup
     
     # Uploads this file to the remote location.
     def update
-      Crackup.debug "--> #{@name}"
+      Crackup.debug "--> #{@path}"
       
       # Compress/encrypt the file.
       tempfile = Crackup.get_tempfile()
       
       if Crackup.options[:passphrase].nil?
-        Crackup.compress_file(@name, tempfile)
+        Crackup.compress_file(@path, tempfile)
       else
-        Crackup.encrypt_file(@name, tempfile)
+        Crackup.encrypt_file(@path, tempfile)
       end
       
       # Upload the file.
