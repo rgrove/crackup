@@ -160,51 +160,17 @@ module Crackup
     return local_files
   end
   
-  # Gets an instance of Crackup::Index representing the remote file index. If no
-  # remote index exists, a new index will be created and returned. 
-  def self.get_remote_index(url)
-    tempfile = get_tempfile()
-    
-    # Download the index file.
-    begin
-      @driver.get("#{url}/.crackup_index", tempfile)
-    rescue => e
-      return Crackup::Index.new(tempfile)
-    end
-    
-    # Decompress/decrypt the index file.
-    oldfile  = tempfile
-    tempfile = get_tempfile()
-    
-    if @options[:passphrase].nil?
-      begin
-        decompress_file(oldfile, tempfile)
-      rescue => e
-        raise Crackup::IndexError, "Unable to decompress index file. Maybe " +
-            "it's encrypted?"
-      end
-    else
-      begin
-        decrypt_file(oldfile, tempfile)
-      rescue => e
-        raise Crackup::IndexError, "Unable to decrypt index file."
-      end
-    end
-    
-    return Crackup::Index.new(tempfile)
-  end
-  
   # Gets an array of CrackupFileSystemObjects representing files and directories
   # that exist at the remote location but no longer exist at the local location.
   def self.get_removed_files(local_files, remote_files)
     removed = []
-    
+
     remote_files.each do |name, remotefile|
       unless local_files.has_key?(name)
         removed << remotefile
         next
       end
-      
+
       localfile = local_files[name]
       
       if remotefile.is_a?(Crackup::DirectoryObject) && 
@@ -281,32 +247,6 @@ module Crackup
   def self.update_files(files)
     files.each do |file|
       file.update
-    end
-  end
-  
-  # Brings the remote file index up to date with the local one.
-  def self.update_remote_index
-    tempfile   = get_tempfile()
-    remotefile = @options[:to] + '/.crackup_index'
-  
-    File.open(tempfile, 'wb') {|file| Marshal.dump(@local_files, file) }
-    
-    oldfile  = tempfile
-    tempfile = get_tempfile()
-    
-    if @options[:passphrase].nil?
-      compress_file(oldfile, tempfile)
-    else
-      encrypt_file(oldfile, tempfile)
-    end
-    
-    begin
-      success = @driver.put(remotefile, tempfile)
-    rescue => e
-      tryagain = prompt('Unable to update remote index. Try again? (y/n)')
-    
-      retry if tryagain.downcase == 'y'
-      raise Crackup::IndexError, "Unable to update remote index: #{e}"
     end
   end
   
