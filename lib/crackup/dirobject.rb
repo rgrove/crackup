@@ -7,17 +7,37 @@ module Crackup
   class DirectoryObject
     include FileSystemObject
 
-    attr_reader :children
+    attr_reader :children, :parent_path
 
-    def initialize(name)
-      unless File.directory?(name)
-        raise ArgumentError, "#{name} is not a directory"
-      end
-
-      super(name)
-
-      refresh_children
+    # --
+    # Class Methods
+    # ++
+    
+    def initialize(path, parent_path, children = {})
+      super(path)
+      
+      @parent_path = parent_path
+      @children    = children
     end
+    
+    def self.from_db(row, children = {})
+      return DirectoryObject.new(row['path'], row['parent_path'], children)
+    end
+    
+    def self.from_path(path)
+      unless File.directory?(path)
+        raise ArgumentError, "#{path} is not a directory"
+      end
+      
+      dir = DirectoryObject.new(path, File.dirname(path))
+      dir.refresh_children()
+      
+      return dir
+    end
+    
+    # --
+    # Instance Methods
+    # ++
     
     # Gets an array of files contained in this directory or its children whose
     # local filenames match <em>pattern</em>.
@@ -25,7 +45,7 @@ module Crackup
       files = []
       
       @children.each do |name, child|
-        if File.fnmatch?(pattern, child.name)
+        if File.fnmatch?(pattern, child.path)
           files << child
           next
         end
@@ -40,13 +60,11 @@ module Crackup
       return files
     end
 
-    # Builds a Hash of child objects by analyzing the local filesystem. A
-    # refresh is automatically performed when the CrackupDirectory object is
-    # instantiated.
+    # Refreshes children by analyzing the local filesystem.
     def refresh_children
       @children = {}
 
-      Dir.open(@name) do |dir|
+      Dir.open(@path) do |dir|
         dir.each do |filename|
           next if filename == '.' || filename == '..'
 
@@ -60,9 +78,10 @@ module Crackup
           end
 
           if File.directory?(filename)
-            @children[filename.chomp('/')] = Crackup::DirectoryObject.new(filename)
+            @children[filename.chomp('/')] = Crackup::DirectoryObject.from_path(
+                filename)
           elsif File.file?(filename)
-            @children[filename] = Crackup::FileObject.new(filename)
+            @children[filename] = Crackup::FileObject.from_path(filename)
           end
         end
       end

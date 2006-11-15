@@ -1,35 +1,81 @@
 require 'crackup/fsobject'
 require 'digest/sha2'
 require 'fileutils'
+require 'time'
 
 module Crackup
 
   # Represents a file on the local filesystem.
   class FileObject
     include FileSystemObject
-
-    attr_reader :file_hash, :url
+    
+    attr_reader :path, :dir_path, :ctime, :mtime, :inode, :size, :timestamp
   
-    def initialize(filename)
-      unless File.file?(filename)
-        raise ArgumentError, "#{filename} is not a file"
+    # --
+    # Class Methods
+    # ++
+    
+    def initialize(path, dir_path, hash, ctime, mtime, inode, size,
+        timestamp = Time.new.to_i)
+      super(path)
+      
+      @dir_path  = dir_path
+      @hash      = hash
+      @ctime     = ctime
+      @mtime     = mtime
+      @inode     = inode
+      @size      = size
+      @timestamp = timestamp
+    end
+    
+    # Gets a new Crackup::FileObject representing the Hash _row_, which should
+    # contain the contents of a database row.
+    def self.from_db(row)
+      return FileObject.new(row['path'], row['dir_path'], row['hash'],
+          row['ctime'], row['mtime'], row['inode'], row['size'], 
+          row['timestamp'])
+    end
+    
+    # Creates a new Crackup::FileObject representing the specified local
+    # filename. 
+    def self.from_path(path)
+      unless File.file?(path)
+        raise ArgumentError, "#{path} is not a file"
       end
       
-      super(filename)
+      unless File.readable?(path)
+        raise Crackup::Error, "#{path} is not readable"
+      end
       
-      # Get the file's SHA256 hash.
-      digest = Digest::SHA256.new()
+      stat = File.stat(path)
       
-      File.open(filename, 'rb') do |file|
-        until file.eof? do
-          digest << file.read(1048576)
+      return FileObject.new(path, File.dirname(path), nil, stat.ctime.to_i,
+          stat.mtime.to_i, stat.ino, stat.size)
+    end
+    
+    # --
+    # Instance Methods
+    # ++
+    
+    # Gets an SHA256 hash of the file's contents. The results of this method are
+    # cached, so subsequent calls will always return the same hash. 
+    def hash
+      return @hash unless @hash.nil?
+      
+      digest = Digest::SHA256.new
+      
+      File.open(@path, 'rb') do |file|
+        while buffer = file.read(1048576) do
+          digest << buffer
         end
       end
 
-      @file_hash = digest.hexdigest()
-      @url       = "#{Crackup.driver.url}/crackup_#{@name_hash}"
+      return @hash = digest.hexdigest()
+      
+    rescue => e
+      raise Crackup::Error, "Unable to generate file hash: #{e}"
     end
-    
+
     # Removes this file from the remote location.
     def remove
       Crackup.debug "--> #{@name}"
