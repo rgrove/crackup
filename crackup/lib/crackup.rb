@@ -4,7 +4,6 @@ require 'crackup/errors'
 require 'crackup/dirobject'
 require 'crackup/driver'
 require 'crackup/fileobject'
-require 'crackup/index'
 require 'tempfile'
 require 'yaml'
 require 'zlib'
@@ -150,14 +149,60 @@ module Crackup
       
       if File.directory?(filename)
         debug "--> #{filename}"
-        local_files[filename] = Crackup::DirectoryObject.from_path(filename)
+        local_files[filename] = Crackup::DirectoryObject.new(filename)
       elsif File.file?(filename)
         debug "--> #{filename}"
-        local_files[filename] = Crackup::FileObject.from_path(filename)
+        local_files[filename] = Crackup::FileObject.new(filename)
       end
     end
     
     return local_files
+  end
+  
+  # Gets a Hash of CrackupFileSystemObjects present at the remote location.
+  def self.get_remote_files(url)
+    tempfile = get_tempfile()
+    
+    # Download the index file.
+    begin
+      @driver.get(url + '/.crackup_index', tempfile)
+    rescue => e
+      return {}
+    end
+    
+    # Decompress/decrypt the index file.
+    oldfile  = tempfile
+    tempfile = get_tempfile()
+    
+    if @options[:passphrase].nil?
+      begin
+        decompress_file(oldfile, tempfile)
+      rescue => e
+        raise Crackup::IndexError, "Unable to decompress index file. Maybe " +
+            "it's encrypted?"
+      end
+    else
+      begin
+        decrypt_file(oldfile, tempfile)
+      rescue => e
+        raise Crackup::IndexError, "Unable to decrypt index file."
+      end
+    end
+    
+    # Load the index file.
+    file_list = {}
+
+    begin
+      File.open(tempfile, 'rb') {|file| file_list = Marshal.load(file) }
+    rescue => e
+      raise Crackup::IndexError, "Remote index is invalid!"
+    end
+    
+    unless file_list.is_a?(Hash)
+      raise Crackup::IndexError, "Remote index is invalid!"
+    end
+    
+    return file_list
   end
   
   # Gets an array of CrackupFileSystemObjects representing files and directories
@@ -191,20 +236,20 @@ module Crackup
     return tempfile.path
   end
 
-  # Gets an array of Crackup::FileSystemObjects representing files and
-  # directories that are new or have been modified at the local location and
-  # need to be updated at the remote location.
-  def self.get_updated_files(local_files, remote_index)
+  # Gets an array of Crackup::FileSystemObjects representing files and directories
+  # that are new or have been modified at the local location and need to be
+  # updated at the remote location.
+  def self.get_updated_files(local_files, remote_files)
     updated = []
     
     local_files.each do |name, localfile|
       # Add the file to the list if it doesn't exist at the remote location.
-      unless remote_index.has_key?(name)
+      unless remote_files.has_key?(name)
         updated << localfile
         next
       end
       
-      remotefile = remote_index[name]
+      remotefile = remote_files[name]
       
       if localfile.is_a?(Crackup::DirectoryObject) && 
           remotefile.is_a?(Crackup::DirectoryObject)
@@ -247,6 +292,32 @@ module Crackup
   def self.update_files(files)
     files.each do |file|
       file.update
+    end
+  end
+  
+  # Brings the remote file index up to date with the local one.
+  def self.update_remote_index
+    tempfile   = get_tempfile()
+    remotefile = @options[:to] + '/.crackup_index'
+  
+    File.open(tempfile, 'wb') {|file| Marshal.dump(@local_files, file) }
+    
+    oldfile  = tempfile
+    tempfile = get_tempfile()
+    
+    if @options[:passphrase].nil?
+      compress_file(oldfile, tempfile)
+    else
+      encrypt_file(oldfile, tempfile)
+    end
+    
+    begin
+      success = @driver.put(remotefile, tempfile)
+    rescue => e
+      tryagain = prompt('Unable to update remote index. Try again? (y/n)')
+    
+      retry if tryagain.downcase == 'y'
+      raise Crackup::IndexError, "Unable to update remote index: #{e}"
     end
   end
   
