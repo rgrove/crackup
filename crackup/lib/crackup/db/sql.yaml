@@ -1,0 +1,94 @@
+# sql.yaml - This file contains SQL statements used by Crackup.
+---
+archive_data:
+  create: |
+    CREATE TABLE archive_data (
+      path     TEXT PRIMARY KEY,
+      filedata BLOB
+    );
+
+archive_index:
+  create: |
+    CREATE TABLE archive_index (
+      path       TEXT PRIMARY KEY,
+      hash       TEXT NOT NULL,
+      byte_start INTEGER NOT NULL,
+      byte_end   INTEGER NOT NULL
+    );
+
+archive_meta:
+  create: |
+    CREATE TABLE archive_meta (
+      creator_name    TEXT,
+      creator_version TEXT,
+      creator_url     TEXT
+    );
+
+chunks:
+  create: |
+    CREATE TABLE chunks (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      file_path  TEXT NOT NULL,
+      byte_start INTEGER NOT NULL,
+      byte_end   INTEGER NOT NULL
+    );
+
+dirs:
+  create: |
+    CREATE TABLE dirs (
+      path        TEXT PRIMARY KEY,
+      parent_path TEXT,
+      name        TEXT NOT NULL
+    );
+  
+  get_by_parent: |
+    SELECT *
+    FROM dirs
+    WHERE
+      parent_path = :parent_path
+    ORDER BY path
+  
+  get_by_path: |
+    SELECT *
+    FROM dirs
+    WHERE
+      path = :path
+  
+  has_dir?: |
+    SELECT COUNT(*)
+    FROM dirs
+    WHERE
+      path = :path
+
+files:
+  create: |
+    CREATE TABLE files (
+      path      TEXT PRIMARY KEY,
+      dir_path  TEXT,
+      name      TEXT NOT NULL,
+      hash      TEXT,
+      ctime     INTEGER DEFAULT 0,
+      mtime     INTEGER DEFAULT 0,
+      inode     INTEGER DEFAULT 0,
+      size      INTEGER DEFAULT 0,
+      timestamp INTEGER DEFAULT 0
+    );
+  
+  get_by_dir: |
+    SELECT *
+    FROM files
+    WHERE
+      dir_path = :dir_path
+    ORDER BY path
+  
+  get_by_path: |
+    SELECT *
+    FROM files
+    WHERE
+      path = :path
+  
+  has_file?: |
+    SELECT COUNT(*)
+    FROM files
+    WHERE
+      path = :path

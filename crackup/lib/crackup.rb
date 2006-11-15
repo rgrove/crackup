@@ -4,6 +4,7 @@ require 'crackup/errors'
 require 'crackup/dirobject'
 require 'crackup/driver'
 require 'crackup/fileobject'
+require 'crackup/index'
 require 'tempfile'
 require 'yaml'
 require 'zlib'
@@ -149,25 +150,26 @@ module Crackup
       
       if File.directory?(filename)
         debug "--> #{filename}"
-        local_files[filename] = Crackup::DirectoryObject.new(filename)
+        local_files[filename] = Crackup::DirectoryObject.from_path(filename)
       elsif File.file?(filename)
         debug "--> #{filename}"
-        local_files[filename] = Crackup::FileObject.new(filename)
+        local_files[filename] = Crackup::FileObject.from_path(filename)
       end
     end
     
     return local_files
   end
   
-  # Gets a Hash of CrackupFileSystemObjects present at the remote location.
-  def self.get_remote_files(url)
+  # Gets an instance of Crackup::Index representing the remote file index. If no
+  # remote index exists, a new index will be created and returned. 
+  def self.get_remote_index(url)
     tempfile = get_tempfile()
     
     # Download the index file.
     begin
-      @driver.get(url + '/.crackup_index', tempfile)
+      @driver.get("#{url}/.crackup_index", tempfile)
     rescue => e
-      return {}
+      return Crackup::Index.new(tempfile)
     end
     
     # Decompress/decrypt the index file.
@@ -189,20 +191,7 @@ module Crackup
       end
     end
     
-    # Load the index file.
-    file_list = {}
-
-    begin
-      File.open(tempfile, 'rb') {|file| file_list = Marshal.load(file) }
-    rescue => e
-      raise Crackup::IndexError, "Remote index is invalid!"
-    end
-    
-    unless file_list.is_a?(Hash)
-      raise Crackup::IndexError, "Remote index is invalid!"
-    end
-    
-    return file_list
+    return Crackup::Index.new(tempfile)
   end
   
   # Gets an array of CrackupFileSystemObjects representing files and directories
@@ -236,20 +225,20 @@ module Crackup
     return tempfile.path
   end
 
-  # Gets an array of CrackupFileSystemObjects representing files and directories
-  # that are new or have been modified at the local location and need to be
-  # updated at the remote location.
-  def self.get_updated_files(local_files, remote_files)
+  # Gets an array of Crackup::FileSystemObjects representing files and
+  # directories that are new or have been modified at the local location and
+  # need to be updated at the remote location.
+  def self.get_updated_files(local_files, remote_index)
     updated = []
     
     local_files.each do |name, localfile|
       # Add the file to the list if it doesn't exist at the remote location.
-      unless remote_files.has_key?(name)
+      unless remote_index.has_key?(name)
         updated << localfile
         next
       end
       
-      remotefile = remote_files[name]
+      remotefile = remote_index[name]
       
       if localfile.is_a?(Crackup::DirectoryObject) && 
           remotefile.is_a?(Crackup::DirectoryObject)
