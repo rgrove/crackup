@@ -7,7 +7,7 @@ require 'rake/rdoctask'
 
 spec = Gem::Specification.new do |s|
   s.name     = 'crackup'
-  s.version  = '1.0.0'
+  s.version  = '1.0.1'
   s.author   = 'Ryan Grove'
   s.email    = 'ryan@wonko.com'
   s.homepage = 'http://wonko.com/software/crackup'

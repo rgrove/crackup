@@ -1,16 +1,17 @@
-require 'crackup/fsobject'
+require 'crackup/fs_object'
 
 module Crackup
 
   # Represents a directory on the local filesystem. Can contain any number of
   # Crackup::FileSystemObjects as children.
   class DirectoryObject
+    include Enumerable
     include FileSystemObject
 
     attr_reader :children
 
     #--
-    # Public Class Methods
+    # Public Instance Methods
     #++
     
     def initialize(name)
@@ -20,12 +21,24 @@ module Crackup
 
       super(name)
 
-      refresh_children
+      refresh_children()
     end
     
-    #--
-    # Public Instance Methods
-    #++
+    # Compares the specified Crackup::DirectoryObject to this one. Returns
+    # +true+ if the directories and all their children are the same, +false+
+    # otherwise.
+    def ==(directory)
+      return false unless directory.name == @name      
+      return directory.all?{|child| child == @children[child.name] }
+    end
+    
+    def [](key)
+      return @children[key]
+    end
+    
+    def each
+      @children.each {|child| yield child }
+    end
     
     # Gets an array of files contained in this directory or its children whose
     # local filenames match _pattern_.
@@ -38,8 +51,9 @@ module Crackup
           next
         end
         
-        next unless child.is_a?(Crackup::DirectoryObject)
-        files << result if result = child.find(pattern)
+        if child.is_a?(Crackup::DirectoryObject)
+          files << result if result = child.find(pattern)
+        end
       end
       
       return files
@@ -54,22 +68,20 @@ module Crackup
         dir.each do |filename|
           next if filename == '.' || filename == '..'
 
-          filename = File.join(dir.path, filename).gsub("\\", "/")
+          path = File.join(dir.path, filename).gsub("\\", "/")
 
           # Skip this file if it's in the exclusion list.
           unless Crackup::options[:exclude].nil?
             next if Crackup::options[:exclude].any? do |pattern|
-              File.fnmatch?(pattern, filename)
+              File.fnmatch?(pattern, path)
             end
           end
 
-          if File.directory?(filename)
-            @children[filename.chomp('/')] = Crackup::DirectoryObject.new(filename)
-          elsif File.file?(filename)
-            @children[filename] = Crackup::FileObject.new(filename)
-          end
+          @children[path] = Crackup::FileSystemObject.from(path)
         end
       end
+      
+      return @children
     end
 
     # Removes the remote copy of this directory and all its children.
@@ -77,10 +89,16 @@ module Crackup
       @children.each_value {|child| child.remove }
     end
 
-    # Restores the remote copy of this directory to the specified local 
-    # <em>path</em>.
+    # Restores the remote copy of this directory to the specified local _path_.
     def restore(path)
       @children.each_value {|child| child.restore(path) }
+    end
+    
+    def to_s
+      childnames = []
+      @children.each_value {|child| childnames << child.to_s }
+      
+      return childnames
     end
     
     # Uploads this directory and all its children to the remote location.

@@ -1,4 +1,4 @@
-require 'crackup/fsobject'
+require 'crackup/fs_object'
 require 'digest/sha2'
 require 'fileutils'
 
@@ -18,18 +18,25 @@ module Crackup
       super(filename)
       
       # Get the file's SHA256 hash.
-      digest = Digest::SHA256.new()
+      digest = Digest::SHA256.new
       
       File.open(filename, 'rb') do |file|
-        until file.eof? do
-          digest << file.read(1048576)
+        while buffer = file.read(1048576) do
+          digest << buffer
         end
       end
 
       @file_hash = digest.hexdigest()
       @url       = "#{Crackup.driver.url}/crackup_#{@name_hash}"
     end
-    
+
+    # Compares the specified Crackup::FileObject to this one. Returns +false+ if
+    # _file_ is different, +true+ if _file_ is the same. The comparison is
+    # performed using an SHA256 hash of the file contents.
+    def ==(file)
+      return file.name == @name && file.file_hash == @file_hash
+    end
+
     # Removes this file from the remote location.
     def remove
       Crackup.debug "--> #{@name}"

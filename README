@@ -13,12 +13,12 @@ transferred to the remote location over a variety of protocols, including FTP.
 Additional storage drivers can easily be written in Ruby.
 
 Author::    Ryan Grove (mailto:ryan@wonko.com)
-Version::   1.0.0
+Version::   1.0.1
 Copyright:: Copyright (c) 2006 Ryan Grove. All rights reserved.
 License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
 Website::   http://wonko.com/software/crackup
 
 == Dependencies
 
-- Ruby 1.8.5+
+- Ruby 1.8.4+
 - GPG 1.4.2+ (if you want to encrypt your backups)
