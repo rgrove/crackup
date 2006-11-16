@@ -6,7 +6,7 @@ require 'rake/gempackagetask'
 require 'rake/rdoctask'
 
 spec = Gem::Specification.new do |s|
-  s.name             = 'Crackup'
+  s.name             = 'crackup'
   s.version          = '1.0.0'
   s.author           = 'Ryan Grove'
   s.email            = 'ryan@wonko.com'
@@ -16,13 +16,13 @@ spec = Gem::Specification.new do |s|
                        "backup solution for folks who want to keep their " +
                        "data securely backed up but aren't particularly " +
                        "concerned about bandwidth usage."
-  s.files            = FileList['{bin,db,docs,lib,tests}/**/*'].exclude('rdoc').to_a
+  s.files            = FileList['{bin,lib,tests}/**/*'].exclude('rdoc').to_a
   s.require_path     = 'lib'
   s.autorequire      = 'crackup'
 #  s.test_file        = ''
   s.has_rdoc         = true
   s.extra_rdoc_files = ['README']
-  s.add_dependency('sqlite3-ruby', '>= 1.1.0')
+#  s.add_dependency('sqlite3-ruby', '>= 1.1.0')
 end
 
 Rake::GemPackageTask.new(spec) do |pkg|
