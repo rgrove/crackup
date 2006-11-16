@@ -13,7 +13,7 @@ module Crackup; module Driver
   class FileDriver
     include Driver
   
-    # Deletes the file at the specified <em>url</em>.
+    # Deletes the file at the specified _url_.
     def delete(url)
       File.delete(get_path(url))
       return true
@@ -22,7 +22,7 @@ module Crackup; module Driver
       raise Crackup::StorageError, "Unable to delete #{url}: #{e}"
     end
     
-    # Downloads the file at <em>url</em> to <em>local_filename</em>.
+    # Downloads the file at _url_ to _local_filename_.
     def get(url, local_filename)
       FileUtils::copy(get_path(url), local_filename)
       return true
@@ -31,8 +31,8 @@ module Crackup; module Driver
       raise Crackup::StorageError, "Unable to get #{url}: #{e}"
     end
     
-    # Gets the filesystem path represented by <em>url</em>. This method is
-    # capable of parsing URLs in any of the following formats:
+    # Gets the filesystem path represented by _url_. This method is capable of
+    # parsing URLs in any of the following formats:
     # 
     # - file:///foo/bar
     # - file://c:/foo/bar
@@ -60,7 +60,7 @@ module Crackup; module Driver
       raise Crackup::StorageError, "Invalid URL: #{url}"
     end
     
-    # Uploads the file at <em>local_filename</em> to <em>url</em>.
+    # Uploads the file at _local_filename_ to _url_.
     def put(url, local_filename)
       FileUtils::copy(local_filename, get_path(url))
       return true

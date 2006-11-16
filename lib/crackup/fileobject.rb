@@ -37,7 +37,7 @@ module Crackup
     end
 
     # Restores the remote copy of this file to the local path specified by
-    # <em>path</em>.
+    # _path_.
     def restore(path)
       path     = path.chomp('/') + '/' + File.dirname(@name).delete(':')
       filename = path + '/' + File.basename(@name)

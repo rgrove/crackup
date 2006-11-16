@@ -5,7 +5,6 @@ require 'crackup/dirobject'
 require 'crackup/driver'
 require 'crackup/fileobject'
 require 'tempfile'
-require 'yaml'
 require 'zlib'
 
 module Crackup
@@ -15,8 +14,7 @@ module Crackup
   
   attr_accessor :driver, :local_files, :options, :remote_files
   
-  # Reads <em>infile</em> and compresses it to <em>outfile</em> using zlib
-  # compression.
+  # Reads _infile_ and compresses it to _outfile_ using zlib compression.
   def self.compress_file(infile, outfile)
     File.open(infile, 'rb') do |input|
       Zlib::GzipWriter.open(outfile, 9) do |output|
@@ -30,13 +28,12 @@ module Crackup
     raise Crackup::CompressionError, "Unable to compress #{infile}: #{e}"
   end
   
-  # Prints <em>message</em> to stdout if verbose mode is enabled.
+  # Prints _message_ to +stdout+ if verbose mode is enabled.
   def self.debug(message)
     puts message if @options[:verbose] || $VERBOSE
   end
   
-  # Reads <em>infile</em> and decompresses it to <em>outfile</em> using zlib
-  # compression.
+  # Reads _infile_ and decompresses it to _outfile_ using zlib compression.
   def self.decompress_file(infile, outfile)
     Zlib::GzipReader.open(infile) do |input|
       File.open(outfile, 'wb') do |output|
@@ -50,7 +47,7 @@ module Crackup
     raise Crackup::CompressionError, "Unable to decompress #{infile}: #{e}"
   end
   
-  # Calls GPG to decrypt <em>infile</em> to <em>outfile</em>.
+  # Calls GPG to decrypt _infile_ to _outfile_.
   def self.decrypt_file(infile, outfile)
     File.delete(outfile) if File.exist?(outfile)
 
@@ -68,7 +65,7 @@ module Crackup
     return @driver
   end
   
-  # Calls GPG to encrypt <em>infile</em> to <em>outfile</em>.
+  # Calls GPG to encrypt _infile_ to _outfile_.
   def self.encrypt_file(infile, outfile)
     File.delete(outfile) if File.exist?(outfile)
 
@@ -82,20 +79,20 @@ module Crackup
     end
   end
   
-  # Prints the specified <em>message</em> to stderr and exits with an error
+  # Prints the specified _message_ to +stderr+ and exits with an error
   # code of 1.
   def self.error(message)
     abort "#{APP_NAME}: #{message}"
   end
   
-  # Wraps <em>arg</em> in single quotes, escaping any single quotes contained
-  # therein, thus making it safe for use as a shell argument.
+  # Wraps _arg_ in single quotes, escaping any single quotes contained therein,
+  # thus making it safe for use as a shell argument.
   def self.escapeshellarg(arg)
     return "'#{arg.gsub("'", "\\'")}'"
   end
   
-  # Gets an array of files in the remote file index whose local filenames match
-  # <em>pattern</em>.
+  # Gets an array of files in the remote file index whose local paths match
+  # _pattern_.
   def self.find_remote_files(pattern)
     files = []
     pattern.chomp!('/')
@@ -107,15 +104,14 @@ module Crackup
       end
 
       next unless file.is_a?(Crackup::DirectoryObject)
-
       files += file.find(pattern)
     end
     
     return files
   end
   
-  # Gets an array of filenames from <em>files</em>, which may be either a Hash
-  # or a CrackupFileSystemObject.
+  # Gets a flat array of filenames from _files_, which may be either a Hash
+  # or a Crackup::FileSystemObject.
   def self.get_list(files)
     list = []
   
@@ -130,7 +126,7 @@ module Crackup
     return list
   end
 
-  # Gets a Hash of CrackupFileSystemObjects representing the files and
+  # Gets a Hash of Crackup::FileSystemObjects representing the files and
   # directories on the local system in the locations specified by the array of
   # filenames in <tt>options[:from]</tt>.
   def self.get_local_files
@@ -159,7 +155,7 @@ module Crackup
     return local_files
   end
   
-  # Gets a Hash of CrackupFileSystemObjects present at the remote location.
+  # Gets a Hash of Crackup::FileSystemObjects present at the remote location.
   def self.get_remote_files(url)
     tempfile = get_tempfile()
     
@@ -205,8 +201,9 @@ module Crackup
     return file_list
   end
   
-  # Gets an array of CrackupFileSystemObjects representing files and directories
-  # that exist at the remote location but no longer exist at the local location.
+  # Gets an Array of Crackup::FileSystemObjects representing files and
+  # directories that exist at the remote location but no longer exist at the
+  # local location.
   def self.get_removed_files(local_files, remote_files)
     removed = []
 
@@ -236,9 +233,9 @@ module Crackup
     return tempfile.path
   end
 
-  # Gets an array of Crackup::FileSystemObjects representing files and directories
-  # that are new or have been modified at the local location and need to be
-  # updated at the remote location.
+  # Gets an Array of Crackup::FileSystemObjects representing files and
+  # directories that are new or have been modified at the local location and
+  # need to be updated at the remote location.
   def self.get_updated_files(local_files, remote_files)
     updated = []
     
@@ -272,23 +269,23 @@ module Crackup
     return @options
   end
 
-  # Prints <em>message</em> to stdout and waits for user input, which is
-  # then returned.
+  # Prints _message_ to +stdout+ and waits for user input, which is then
+  # returned.
   def self.prompt(message)
     puts message + ': '
     return $stdin.gets
   end
   
-  # Deletes each CrackupFileSystemObject specified in the <em>files</em> array
-  # from the remote location.
+  # Deletes each Crackup::FileSystemObject specified in the _files_ array from
+  # the remote location.
   def self.remove_files(files)
     files.each do |file|
       file.remove
     end
   end
   
-  # Uploads each CrackupFileSystemObject specified in the <em>files</em> array
-  # to the remote location.
+  # Uploads each Crackup::FileSystemObject specified in the _files_ array to the
+  # remote location.
   def self.update_files(files)
     files.each do |file|
       file.update

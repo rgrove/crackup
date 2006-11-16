@@ -26,7 +26,7 @@ $stderr.sync = true
     
 module Crackup
   @options = {
-    :from       => ['.'],
+    :from       => [Dir.pwd],
     :exclude    => [],
     :passphrase => nil,
     :to         => nil,
@@ -100,11 +100,19 @@ module Crackup
   begin
     optparse.parse!(ARGV)
   rescue => e
+    puts optparse
+    puts
     abort("Error: #{e}")
   end
   
+  if @options[:to].nil?
+    puts optparse
+    puts
+    abort 'Error: No destination URL specified.'
+  end
+  
   # Add files to the "from" array.
-  if ARGV.length
+  if ARGV.length > 0
     @options[:from] = []
     
     while filename = ARGV.shift

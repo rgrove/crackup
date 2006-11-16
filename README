@@ -8,13 +8,15 @@ Crackup is ideal for backing up lots of small files, but somewhat less ideal
 for backing up large files, since any change to a file means the entire file
 must be transferred. If you need something bandwidth-efficient, try Duplicity.
 
-Backups are compressed and encrypted via GPG and can be transferred to the
-remote location over a variety of protocols, including FTP.
+Backups are compressed and (optionally) encrypted via GPG and can be
+transferred to the remote location over a variety of protocols, including FTP.
+Additional storage drivers can easily be written in Ruby.
 
 Author::    Ryan Grove (mailto:ryan@wonko.com)
 Version::   1.0.0
 Copyright:: Copyright (c) 2006 Ryan Grove. All rights reserved.
 License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
+Website::   http://wonko.com/software/crackup
 
 == Dependencies
 
