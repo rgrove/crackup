@@ -31,7 +31,7 @@ module Crackup
     :list       => false,
     :only       => [],
     :passphrase => nil,
-    :to         => '.',
+    :to         => Dir.pwd,
     :verbose    => false
   }
   
@@ -93,7 +93,15 @@ module Crackup
   begin
     optparse.parse!(ARGV)
   rescue => e
+    puts optparse
+    puts
     error e
+  end
+  
+  if @options[:from].nil?
+    puts optparse
+    puts
+    abort 'Error: No remote URL specified.'
   end
   
   # Add files to the "only" array.

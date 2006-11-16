@@ -13,7 +13,7 @@ module Crackup; module Driver
   class FtpDriver
     include Driver
   
-    # Connects to the FTP server specified in <em>url</em>.
+    # Connects to the FTP server specified in _url_.
     def initialize(url)
       super(url)
       
@@ -40,7 +40,7 @@ module Crackup; module Driver
       end
     end
 
-    # Deletes the file at the specified <em>url</em>.
+    # Deletes the file at the specified _url_.
     def delete(url)
       @ftp.delete(get_path(url))
       return true
@@ -49,7 +49,7 @@ module Crackup; module Driver
       raise Crackup::StorageError, "Unable to delete #{url}: #{e}"
     end
     
-    # Downloads the file at <em>url</em> to <em>local_filename</em>.
+    # Downloads the file at _url_ to _local_filename_.
     def get(url, local_filename)
       @ftp.getbinaryfile(get_path(url), local_filename)
       return true
@@ -58,7 +58,7 @@ module Crackup; module Driver
       raise Crackup::StorageError, "Unable to download #{url}: #{e}"
     end
     
-    # Uploads the file at <em>local_filename</em> to <em>url</em>.
+    # Uploads the file at _local_filename_ to _url_.
     def put(url, local_filename)
       @ftp.putbinaryfile(local_filename, get_path(url))
       return true
