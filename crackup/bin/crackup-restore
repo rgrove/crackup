@@ -1,0 +1,162 @@
+#!/usr/bin/env ruby
+#
+# crackup-restore - command-line tool for restoring files from Crackup backups.
+# See <tt>crackup-restore -h</tt> for usage information.
+#
+# Author::    Ryan Grove (mailto:ryan@wonko.com)
+# Version::   1.0.0
+# Copyright:: Copyright (c) 2006 Ryan Grove. All rights reserved.
+# License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
+#
+
+require 'crackup'
+require 'optparse'
+
+APP_NAME      = 'crackup-restore'
+APP_VERSION   = '1.0.0'
+APP_COPYRIGHT = 'Copyright (c) 2006 Ryan Grove (ryan@wonko.com). All rights reserved.'
+APP_URL       = 'http://wonko.com/software/crackup'
+  
+for sig in [:SIGINT, :SIGTERM]
+  trap(sig) { abort 'Interrupted' }
+end
+
+$stdout.sync = true
+$stderr.sync = true
+    
+module Crackup
+  @options = {
+    :all        => false,
+    :from       => nil,
+    :list       => false,
+    :only       => [],
+    :passphrase => nil,
+    :to         => Dir.pwd,
+    :verbose    => false
+  }
+  
+  optparse = OptionParser.new do |optparse|
+    optparse.summary_width  = 24
+    optparse.summary_indent = '  '
+    
+    optparse.banner = "Usage: #{File.basename(__FILE__)} -f <url> [-p <pass>] [-v] [-l | <file|dir> ...]"
+    optparse.separator ''
+    
+    optparse.on '-f', '--from <url>',
+        'Remote URL to restore from (e.g.,',
+        'ftp://user:pass@server.com/path)' do |url|
+      @options[:from] = url.gsub("\\", '/').chomp('/')
+    end
+    
+    optparse.on '-l', '--list',
+        'List all files at the remote location' do
+      @options[:list] = true
+    end
+
+    optparse.on '-p', '--passphrase <pass>',
+        'Encryption passphrase (if not specified, no',
+        'encryption will be used)' do |passphrase|
+      @options[:passphrase] = passphrase
+    end
+    
+    optparse.on '-t', '--to <path>',
+        'Destination root directory for the restored files' do |path|
+      @options[:to] = path.chomp('/')
+    end
+    
+    optparse.on '-v', '--verbose',
+        'Verbose output' do
+      @options[:verbose] = true
+    end
+    
+    optparse.on_tail '-h', '--help',
+        'Display usage information (this message)' do
+      puts optparse
+      exit
+    end
+    
+    optparse.on_tail '--version',
+        'Display version information' do
+      puts "#{APP_NAME} v#{APP_VERSION} <#{APP_URL}>"
+      puts "#{APP_COPYRIGHT}"
+      puts
+      puts "#{APP_NAME} comes with ABSOLUTELY NO WARRANTY."
+      puts
+      puts "This program is open source software distributed under the terms of"
+      puts "the New BSD License. For details, see the LICENSE file contained in"
+      puts "the source distribution."
+      exit
+    end
+  end
+  
+  # Parse command line options.
+  begin
+    optparse.parse!(ARGV)
+  rescue => e
+    puts optparse
+    puts
+    error e
+  end
+  
+  if @options[:from].nil?
+    puts optparse
+    puts
+    abort 'Error: No remote URL specified.'
+  end
+  
+  # Add files to the "only" array.
+  if ARGV.length > 0
+    @options[:only] = []
+    
+    while filename = ARGV.shift
+      @options[:only] << filename.chomp('/')
+    end
+  else
+    @options[:all] = true
+  end
+  
+  # Load driver.
+  begin
+    @driver = Crackup::Driver.get_driver(@options[:from])
+  rescue => e
+    error e
+  end
+  
+  # Get the list of remote files and directories.
+  debug 'Retrieving remote file list...'
+  
+  begin
+    @remote_files = get_remote_files(@options[:from])
+  rescue => e
+    error e
+  end
+  
+  # List remote files if the --list option was given.
+  if @options[:list]
+    puts get_list(@remote_files).sort
+    exit
+  end
+
+  # Restore files.
+  debug 'Restoring files...'
+
+  begin
+    if @options[:all]
+      @remote_files.each_value {|file| file.restore(@options[:to]) }
+    else
+      @options[:only].each do |pattern|
+        files = find_remote_files(pattern)
+      
+        if files.empty?
+          error "Remote file not found: #{pattern}"
+        end
+        
+        files.each {|file| file.restore(@options[:to]) }
+      end
+    end
+  rescue => e
+    error e
+  end
+  
+  debug 'Finished!'
+end
