@@ -1,9 +1,10 @@
 ENV['PATH'] = "#{File.dirname(__FILE__)};#{ENV['PATH']}"
 
 require 'crackup/errors'
-require 'crackup/dirobject'
+require 'crackup/directory_object'
 require 'crackup/driver'
-require 'crackup/fileobject'
+require 'crackup/file_object'
+require 'crackup/symlink_object'
 require 'tempfile'
 require 'zlib'
 
@@ -103,8 +104,7 @@ module Crackup
         next
       end
 
-      next unless file.is_a?(Crackup::DirectoryObject)
-      files += file.find(pattern)
+      files += file.find(pattern) if file.is_a?(Crackup::DirectoryObject)
     end
     
     return files
@@ -117,10 +117,8 @@ module Crackup
   
     if files.is_a?(Hash)
       files.each_value {|value| list += get_list(value) }
-    elsif files.is_a?(Crackup::DirectoryObject)
-      list += get_list(files.children)
-    elsif files.is_a?(Crackup::FileObject)
-      list << files.name 
+    elsif files.is_a?(Crackup::FileSystemObject)
+      list << files.to_s
     end
     
     return list
@@ -143,13 +141,8 @@ module Crackup
         end
       end
       
-      if File.directory?(filename)
-        debug "--> #{filename}"
-        local_files[filename] = Crackup::DirectoryObject.new(filename)
-      elsif File.file?(filename)
-        debug "--> #{filename}"
-        local_files[filename] = Crackup::FileObject.new(filename)
-      end
+      debug "--> #{filename}"
+      local_files[filename] = Crackup::FileSystemObject.from(filename)
     end
     
     return local_files
@@ -253,12 +246,8 @@ module Crackup
         # Add to the list all updated files contained in the directory and its 
         # subdirectories.
         updated += get_updated_files(localfile.children, remotefile.children)
-      elsif localfile.is_a?(Crackup::FileObject) && 
-          remotefile.is_a?(Crackup::FileObject)
-        # Add the file to the list if the local file has been modified.
-        unless localfile.file_hash == remotefile.file_hash
-          updated << localfile
-        end
+      elsif localfile != remotefile
+        updated << localfile
       end
     end
     
@@ -279,17 +268,13 @@ module Crackup
   # Deletes each Crackup::FileSystemObject specified in the _files_ array from
   # the remote location.
   def self.remove_files(files)
-    files.each do |file|
-      file.remove
-    end
+    files.each {|file| file.remove }
   end
   
   # Uploads each Crackup::FileSystemObject specified in the _files_ array to the
   # remote location.
   def self.update_files(files)
-    files.each do |file|
-      file.update
-    end
+    files.each {|file| file.update }
   end
   
   # Brings the remote file index up to date with the local one.
