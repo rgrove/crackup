@@ -1,19 +1,20 @@
-ENV['PATH'] = "#{File.dirname(__FILE__)};#{ENV['PATH']}"
-
 require 'crackup/errors'
 require 'crackup/directory_object'
 require 'crackup/driver'
 require 'crackup/file_object'
 require 'crackup/symlink_object'
-require 'tempfile'
+require 'find'
+require 'tmpdir'
 require 'zlib'
 
 module Crackup
 
-  GPG_DECRYPT = 'echo :passphrase | gpg --batch --quiet --no-tty --no-secmem-warning --cipher-algo aes256 --compress-algo bzip2 --passphrase-fd 0 --output :output_file :input_file'
-  GPG_ENCRYPT = 'echo :passphrase | gpg --batch --quiet --no-tty --no-secmem-warning --cipher-algo aes256 --compress-algo bzip2 --passphrase-fd 0 --output :output_file --symmetric :input_file'
+  GPG_DECRYPT = 'echo :passphrase | :gpg --batch --quiet --no-tty --no-secmem-warning --cipher-algo aes256 --compress-algo bzip2 --passphrase-fd 0 --output :output_file :input_file'
+  GPG_ENCRYPT = 'echo :passphrase | :gpg --batch --quiet --no-tty --no-secmem-warning --cipher-algo aes256 --compress-algo bzip2 --passphrase-fd 0 --output :output_file --symmetric :input_file'
   
   attr_accessor :driver, :local_files, :options, :remote_files
+  
+  @gpg_path = nil
   
   # Reads _infile_ and compresses it to _outfile_ using zlib compression.
   def self.compress_file(infile, outfile)
@@ -53,10 +54,11 @@ module Crackup
     File.delete(outfile) if File.exist?(outfile)
 
     gpg_command = String.new(GPG_DECRYPT)
-    gpg_command.gsub!(':input_file', escapeshellarg(infile))
+    gpg_command.gsub!(':gpg',         find_gpg())
+    gpg_command.gsub!(':input_file',  escapeshellarg(infile))
     gpg_command.gsub!(':output_file', escapeshellarg(outfile))
-    gpg_command.gsub!(':passphrase', escapeshellarg(@options[:passphrase]))
-    
+    gpg_command.gsub!(':passphrase',  escapeshellarg(@options[:passphrase]))    
+
     unless system(gpg_command)
       raise Crackup::EncryptionError, "Unable to decrypt file: #{infile}"
     end
@@ -71,9 +73,10 @@ module Crackup
     File.delete(outfile) if File.exist?(outfile)
 
     gpg_command = String.new(GPG_ENCRYPT)
-    gpg_command.gsub!(':input_file', escapeshellarg(infile))
+    gpg_command.gsub!(':gpg',         find_gpg())
+    gpg_command.gsub!(':input_file',  escapeshellarg(infile))
     gpg_command.gsub!(':output_file', escapeshellarg(outfile))
-    gpg_command.gsub!(':passphrase', escapeshellarg(@options[:passphrase]))
+    gpg_command.gsub!(':passphrase',  escapeshellarg(@options[:passphrase]))
     
     unless system(gpg_command)
       raise Crackup::EncryptionError, "Unable to encrypt file: #{infile}"
@@ -86,12 +89,64 @@ module Crackup
     abort "#{APP_NAME}: #{message}"
   end
   
-  # Wraps _arg_ in single quotes, escaping any single quotes contained therein,
-  # thus making it safe for use as a shell argument.
+  # Wraps _arg_ in single quotes (double quotes in Windows), escaping any quotes
+  # contained therein, thus making it safe for use as a shell argument.
   def self.escapeshellarg(arg)
-    return "'#{arg.gsub("'", "\\'")}'"
+    if RUBY_PLATFORM =~ /mswin32/
+      return "\"#{arg.gsub('"', '\\"')}\""
+    else
+      return "'#{arg.gsub("'", "\\'")}'"
+    end
   end
   
+  # Returns the name of the GnuPG executable to use. First we search for +gpg+
+  # or <tt>gpg.exe</tt> in the path. On Windows, if it isn't in the system path,
+  # we try to find a pointer to it in the registry. If everything fails, a
+  # Crackup::Error is raised.
+  def self.find_gpg
+    # Don't bother finding gpg again if we've already found it.
+    return @gpg_path unless @gpg_path.nil?
+  
+    # First, check to see if gpg is in the path.
+    if RUBY_PLATFORM =~ /mswin32/
+      path_dirs = ENV['PATH'].split(';')
+      filename  = 'gpg.exe'
+    else
+      path_dirs = ENV['PATH'].split(':')
+      filename  = 'gpg'
+    end
+    
+    Find.find(*path_dirs) do |path|
+      return @gpg_path = filename if File.executable?(File.join(path, filename))
+    end
+    
+    # Okay, it's not in the path. Unix users are screwed, but if we're on
+    # Windows, we'll make a last-ditch attempt to find it by checking for its
+    # registry key.
+    if RUBY_PLATFORM =~ /mswin32/
+      # Bail out if we can't load the Win32::Registry library.
+      unless require('win32/registry')
+        raise Crackup::Error, 'GnuPG not found.'
+      end
+      
+      # Try to read the GnuPG registry key.
+      begin
+        gpg_path = nil
+        Win32::Registry.open(Win32::Registry::HKEY_CURRENT_USER,
+            'Software\GNU\GnuPG') {|reg| gpg_path = reg.read_s('gpgProgram') }
+      rescue => e
+        raise Crackup::Error, 'GnuPG not found.'
+      end
+      
+      if File.executable?(gpg_path)
+        return @gpg_path = "\"#{gpg_path}\""
+      end
+    end
+    
+    # No luck. Bail out.
+    raise Crackup::Error, 'GnuPG not found.'
+  end
+
   # Gets an array of files in the remote file index whose local paths match
   # _pattern_.
   def self.find_remote_files(pattern)
@@ -124,7 +179,7 @@ module Crackup
     return list
   end
 
-  # Gets a Hash of Crackup::FileSystemObjects representing the files and
+  # Gets a Hash of {Crackup::FileSystemObject}s representing the files and
   # directories on the local system in the locations specified by the array of
   # filenames in <tt>options[:from]</tt>.
   def self.get_local_files
@@ -220,10 +275,24 @@ module Crackup
   # Creates a new temporary file in the system's temporary directory and returns
   # its name. All temporary files will be deleted when the program exits.
   def self.get_tempfile
-    tempfile = Tempfile.new('.crackup')
-    tempfile.close
+    # We would use Ruby's tempfile library here, but for some reason it
+    # sometimes deletes temp files before the program exits, which can cause all
+    # kinds of problems.
+    i = -1
     
-    return tempfile.path
+    while tempfile = File.join(Dir.tmpdir(),
+        ".crackup.#{Process.pid}.#{i += 1}") do
+      break unless File.exist?(tempfile)
+    end
+    
+    at_exit do 
+      begin
+        File.delete(tempfile)
+      rescue => e
+      end
+    end
+    
+    return tempfile
   end
 
   # Gets an Array of Crackup::FileSystemObjects representing files and
