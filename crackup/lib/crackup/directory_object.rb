@@ -97,8 +97,7 @@ module Crackup
     def to_s
       childnames = []
       @children.each_value {|child| childnames << child.to_s }
-      
-      return childnames
+      return childnames.join("\n")
     end
     
     # Uploads this directory and all its children to the remote location.

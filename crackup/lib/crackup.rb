@@ -173,10 +173,10 @@ module Crackup
     if files.is_a?(Hash)
       files.each_value {|value| list += get_list(value) }
     elsif files.is_a?(Crackup::FileSystemObject)
-      list << files.to_s
+      list += files.to_s.split("\n")
     end
     
-    return list
+    return list.sort
   end
 
   # Gets a Hash of {Crackup::FileSystemObject}s representing the files and
