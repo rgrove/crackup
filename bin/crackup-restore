@@ -134,7 +134,7 @@ module Crackup
   
   # List remote files if the --list option was given.
   if @options[:list]
-    puts get_list(@remote_files).sort
+    puts get_list(@remote_files)
     exit
   end
 
