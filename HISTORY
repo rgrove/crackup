@@ -1,7 +1,11 @@
 Crackup Release History
 
-Version 1.0.1 (11/16/2006)
-  * Fixed handling of symbolic links (Bug #2)
+Version 1.0.1 (11/21/2006)
+  * Fix broken handling of symbolic links.
+  * Expand relative paths before backing up.
+  * Win32: If gpg.exe isn't in the system path, look for it at the path
+    specified in the HKCU\Software\GNU\GnuPG\gpgProgram registry key (if the key
+    exists) before failing.
 
 Version 1.0.0 (11/16/2006)
   * First release.

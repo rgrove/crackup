@@ -37,7 +37,7 @@ module Crackup
     optparse.summary_width  = 24
     optparse.summary_indent = '  '
     
-    optparse.banner = "Usage: #{File.basename(__FILE__)} -t <url> [-p <pass>] [-v] [<file|dir> ...]"
+    optparse.banner = "Usage: #{File.basename(__FILE__)} -t <url> [-p <pass>] [-x <file>] [-v] [<file|dir> ...]"
     optparse.separator ''
     
     optparse.on '-p', '--passphrase <pass>',
@@ -116,7 +116,7 @@ module Crackup
     @options[:from] = []
     
     while filename = ARGV.shift
-      @options[:from] << filename.chomp('/')
+      @options[:from] << File.expand_path(filename)
     end
   end
   

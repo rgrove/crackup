@@ -39,7 +39,8 @@ module Crackup
     optparse.summary_width  = 24
     optparse.summary_indent = '  '
     
-    optparse.banner = "Usage: #{File.basename(__FILE__)} -f <url> [-p <pass>] [-v] [-l | <file|dir> ...]"
+    optparse.banner = "Usage: #{File.basename(__FILE__)} -f <url> -t <path> [-p <pass>] [-v] [<file|dir> ...]\n" +
+                      "       #{File.basename(__FILE__)} -f <url> -l [-p <pass>] [-v]"
     optparse.separator ''
     
     optparse.on '-f', '--from <url>',
