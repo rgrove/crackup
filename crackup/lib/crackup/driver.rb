@@ -12,8 +12,7 @@ module Crackup
   # - In your class, mixin the Crackup::Driver module and override at least the
   #   delete, get, and put methods.
   # - Package your driver as a gem named "crackup-foo" (where "foo" is the
-  #   lowercase version of the URI scheme your driver will handle) and ensure
-  #   that the gem autorequires any necessary libraries.
+  #   lowercase version of the URI scheme your driver will handle).
   #   
   # That's all there is to it. See Crackup::Driver::FileDriver and
   # Crackup::Driver::FtpDriver for examples.
