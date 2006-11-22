@@ -11,4 +11,8 @@ cd ..\crackup-ftp
 call rake clobber
 call rake pkg/crackup-ftp-1.0.2.gem
 
+cd ..\crackup-sftp
+call rake clobber
+call rake pkg/crackup-sftp-1.0.0.gem
+
 cd ..\build
