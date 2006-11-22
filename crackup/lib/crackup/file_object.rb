@@ -1,6 +1,5 @@
 require 'crackup/fs_object'
 require 'digest/sha2'
-require 'fileutils'
 
 module Crackup
 
@@ -44,21 +43,12 @@ module Crackup
     end
 
     # Restores the remote copy of this file to the local path specified by
-    # _path_.
+    # _path_. If the file already exists at _path_, it will be overwritten.
     def restore(path)
       path     = path.chomp('/') + '/' + File.dirname(@name).delete(':')
       filename = path + '/' + File.basename(@name)
 
       Crackup.debug "--> #{filename}"
-      
-      # Create the path if it doesn't exist.
-      unless File.directory?(path)
-        begin
-          FileUtils.mkdir_p(path)
-        rescue => e
-          raise Crackup::Error, "Unable to create local directory: #{path}"
-        end
-      end
       
       # Download the remote file.
       tempfile = Crackup.get_tempfile()

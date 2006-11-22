@@ -154,7 +154,8 @@ module Crackup
     pattern.chomp!('/')
     
     @remote_files.each do |name, file|
-      if File.fnmatch?(pattern, file.name)
+      if File.fnmatch?(pattern, file.name) ||
+          File.fnmatch?(pattern, File.basename(file.name))
         files << file
         next
       end
