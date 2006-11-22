@@ -1,8 +1,7 @@
-require 'fileutils'
 require 'rubygems'
+require 'crackup'
+require 'fileutils'
 require 'uri'
-
-require_gem 'crackup'
 
 module Crackup; module Driver
 
