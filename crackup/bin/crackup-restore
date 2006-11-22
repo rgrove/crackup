@@ -63,7 +63,7 @@ module Crackup
     
     optparse.on '-t', '--to <path>',
         'Destination root directory for the restored files' do |path|
-      @options[:to] = path.chomp('/')
+      @options[:to] = path.gsub("\\", '/').chomp('/')
     end
     
     optparse.on '-v', '--verbose',
@@ -152,7 +152,7 @@ module Crackup
         if files.empty?
           error "Remote file not found: #{pattern}"
         end
-        
+
         files.each {|file| file.restore(@options[:to]) }
       end
     end

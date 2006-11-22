@@ -52,7 +52,9 @@ module Crackup
         end
         
         if child.is_a?(Crackup::DirectoryObject)
-          files << result if result = child.find(pattern)
+          if result = child.find(pattern)
+            files += result
+          end 
         end
       end
       

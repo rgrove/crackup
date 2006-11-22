@@ -1,6 +1,8 @@
 Crackup Release History
 
 Version 1.0.2 (?)
+  * Fix "undefined local variable or method 'result'" error when restoring
+    individual files.
   * Storage drivers have been broken out into separate gems to make installation
     of third-party drivers easier. The filesystem and FTP drivers will still be
     installed by default along with the main Crackup gem.
