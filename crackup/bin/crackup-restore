@@ -4,16 +4,18 @@
 # See <tt>crackup-restore -h</tt> for usage information.
 #
 # Author::    Ryan Grove (mailto:ryan@wonko.com)
-# Version::   1.0.1
+# Version::   1.0.2
 # Copyright:: Copyright (c) 2006 Ryan Grove. All rights reserved.
 # License::   New BSD License (http://opensource.org/licenses/bsd-license.php)
 #
 
-require 'crackup'
 require 'optparse'
+require 'rubygems'
+
+require_gem 'crackup'
 
 APP_NAME      = 'crackup-restore'
-APP_VERSION   = '1.0.1'
+APP_VERSION   = '1.0.2'
 APP_COPYRIGHT = 'Copyright (c) 2006 Ryan Grove (ryan@wonko.com). All rights reserved.'
 APP_URL       = 'http://wonko.com/software/crackup'
   

@@ -1,5 +1,10 @@
 Crackup Release History
 
+Version 1.0.2 (?)
+  * Storage drivers have been broken out into separate gems to make installation
+    of third-party drivers easier. The filesystem and FTP drivers will still be
+    installed by default along with the main Crackup gem.
+
 Version 1.0.1 (11/21/2006)
   * Fix broken handling of symbolic links.
   * Expand relative paths before backing up.

@@ -9,11 +9,11 @@ module Crackup
   # - Create a class in Crackup::Driver named "FooDriver", where "Foo" is the
   #   capitalized version of the URI scheme your driver will handle (e.g.,
   #   "Ftp", "Sftp", etc.).
-  # - Name your class file <tt>foo.rb</tt> ("foo" being the lowercase URI scheme
-  #   this time) and place it in Crackup's <tt>lib/crackup/drivers</tt>
-  #   directory.
   # - In your class, mixin the Crackup::Driver module and override at least the
   #   delete, get, and put methods.
+  # - Package your driver as a gem named "crackup-foo" (where "foo" is the
+  #   lowercase version of the URI scheme your driver will handle) and ensure
+  #   that the gem autorequires any necessary libraries.
   #   
   # That's all there is to it. See Crackup::Driver::FileDriver and
   # Crackup::Driver::FtpDriver for examples.
@@ -38,11 +38,16 @@ module Crackup
       end
       
       # Load the driver.
-      unless require(File.dirname(__FILE__) + "/drivers/#{scheme}")
-        raise Crackup::StorageError, "Driver not found for scheme '#{uri.scheme}'"
+      unless require_gem("crackup-#{scheme}") || require("crackup-#{scheme}")
+        raise Crackup::StorageError, "Driver not found for scheme '#{scheme}'"
       end
       
-      return const_get("#{scheme.capitalize}Driver").new(url)
+      begin
+        return const_get("#{scheme.capitalize}Driver").new(url)
+      rescue => e
+        raise Crackup::StorageError,
+            "Unable to load storage driver for scheme '#{scheme}'"
+      end
     end
     
     def initialize(url)
