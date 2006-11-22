@@ -1,8 +1,7 @@
-require 'net/ftp'
 require 'rubygems'
+require 'crackup'
+require 'net/ftp'
 require 'uri'
-
-require_gem 'crackup'
 
 module Crackup; module Driver
 
