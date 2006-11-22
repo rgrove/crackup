@@ -38,9 +38,7 @@ module Crackup
       end
       
       # Load the driver.
-      unless require_gem("crackup-#{scheme}") || require("crackup-#{scheme}")
-        raise Crackup::StorageError, "Driver not found for scheme '#{scheme}'"
-      end
+      require "crackup-#{scheme}"
       
       begin
         return const_get("#{scheme.capitalize}Driver").new(url)
