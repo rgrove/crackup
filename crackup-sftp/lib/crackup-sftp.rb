@@ -8,6 +8,8 @@ module Crackup; module Driver
 
   # SFTP storage driver for Crackup
   #
+  #  sftp://<username>:<password>@<hostname>[:<port>][/<path>]
+  #
   # Author::    Brett Stimmerman (mailto:brettstimmerman@gmail.com)
   # Version::   1.0.0
   # Copyright:: Copyright (c) 2006 Brett Stimmerman. All rights reserved.
@@ -27,10 +29,18 @@ module Crackup; module Driver
         raise Crackup::StorageError, "Invalid URL: #{url}: #{e}"
       end
       
+      if uri.user.nil?
+        raise Crackup::StorageError, 'SFTP username not specified.'
+      end
+      
+      if uri.password.nil?
+        raise Crackup::StorageError, 'SFTP password not specified.'
+      end
+      
       Crackup::debug 'Connecting...'
       
       begin
-        @ssh  = Net::SSH::Session.new(uri.host, uri.port.nil? ? 22 : uri.port, 
+        @ssh  = Net::SSH::Session.new(uri.host, uri.port.nil? ? 22 : uri.port,
             uri.user, uri.password)
           
         at_exit do
@@ -64,7 +74,8 @@ module Crackup; module Driver
       @sftp.get_file("." + get_path(url), local_filename)
       return true
     rescue => e
-      raise Crackup::StorageError, "Unable to download #{url}: #{e.message}"
+      raise Crackup::StorageError, 
+          "Unable to download #{url}: #{e}"
     end
     
     # Uploads the file at _local_filename_ to _url_.
@@ -72,7 +83,7 @@ module Crackup; module Driver
       @sftp.put_file(local_filename, "." + get_path(url))
       return true
     rescue => e
-      raise Crackup::StorageError, "Unable to upload #{url}: #{e.message}"
+      raise Crackup::StorageError, "Unable to upload #{url}: #{e}"
     end
   end
 
