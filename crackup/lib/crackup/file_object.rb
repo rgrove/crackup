@@ -1,5 +1,6 @@
 require 'crackup/fs_object'
 require 'digest/sha2'
+require 'fileutils'
 
 module Crackup
 
