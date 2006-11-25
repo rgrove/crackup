@@ -1,7 +1,8 @@
 Crackup Release History
 
 Version 1.0.2 (?)
-  * Added an SFTP storage driver (contributed by Brett Stimmerman).
+  * Added an optional SFTP storage driver (contributed by Brett Stimmerman).
+  * Added an optional Amazon S3 storage driver.
   * When restoring individual files or directories, match against the base
     filename in addition to the full path. 
   * Fix "undefined local variable or method 'result'" error when restoring
