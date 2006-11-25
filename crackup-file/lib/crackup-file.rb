@@ -1,5 +1,3 @@
-require 'rubygems'
-require 'crackup'
 require 'fileutils'
 require 'uri'
 

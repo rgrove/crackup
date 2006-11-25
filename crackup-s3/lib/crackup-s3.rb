@@ -1,13 +1,12 @@
 require 'rubygems'
-require 'crackup'
-require 'S33r'
+require 'net/amazon/s3'
 require 'uri'
 
 module Crackup; module Driver
 
   # Amazon S3 storage driver for Crackup. Use the following format for S3 URLs:
   # 
-  #   s3://<public access key>:<secret access key>@s3.amazonaws.com/<bucket>
+  #   s3://<access key id>:<secret access key>@s3.amazonaws.com/<bucket>
   # 
   # If the specified storage bucket does not exist, the driver will attempt to
   # create it.
@@ -20,7 +19,7 @@ module Crackup; module Driver
   class S3Driver
     include Driver
   
-    # Creates a s33r client instance.
+    # Creates an S3 client instance.
     def initialize(url)
       super(url)
       
@@ -33,7 +32,7 @@ module Crackup; module Driver
       
       if uri.user.nil?
         raise Crackup::StorageError,
-            'Amazon S3 public access key not specified.'
+            'Amazon S3 access key id not specified.'
       end
       
       if uri.password.nil?
@@ -42,17 +41,18 @@ module Crackup; module Driver
       end
       
       begin
-        @s3 = S33r::Client.new(uri.user, uri.password, :use_ssl => true,
-            :dump_requests => false)
+        @s3 = Net::Amazon::S3.new(URI.decode(uri.user),
+            URI.decode(uri.password))
         
         # Create the bucket if it doesn't exist.
-        bucket_name = get_bucket(url)        
-        @s3.create_bucket(bucket_name) unless @s3.bucket_exists?(bucket_name)
+        bucket_name = get_bucket_name(url)
         
-        # Open the bucket.
-        @bucket = S33r::NamedBucket.new(uri.user, uri.password,
-            :default_bucket  => get_bucket(url),
-            :public_contents => false)
+        if @s3.bucket_exist?(bucket_name)
+          @bucket = @s3.get_bucket(bucket_name)
+        else
+          @bucket = @s3.create_bucket(bucket_name)
+        end
+        
       rescue => e
         raise Crackup::StorageError, "Unable to initialize S3 client: #{e}"
       end
@@ -60,7 +60,7 @@ module Crackup; module Driver
 
     # Deletes the file at the specified _url_.
     def delete(url)
-      @s3.delete_resource(get_bucket(url), get_key(url))
+      @bucket.delete_object(get_key(url))
       return true
       
     rescue => e
@@ -72,12 +72,17 @@ module Crackup; module Driver
       key = get_key(url)
     
       # Get the data (let's hope it's not too big to fit in RAM).
-      unless @bucket.key_exists?(key) && data = @bucket[key] 
+      unless @bucket.object_exist?(key)
         raise Crackup::StorageError, "Unable to download #{url}: key not found"
       end
-
+      
+      object = @bucket[key]
+      
       # Write the data to local_filename.
-      File.open(local_filename, 'wb') {|file| file.write(data) }
+      File.open(local_filename, 'wb') do |file|
+        object.value {|chunk| file.write(chunk) }
+      end
+      
       return true
     
     rescue => e
@@ -85,7 +90,7 @@ module Crackup; module Driver
     end
     
     # Parses _url_ and returns the name of the S3 bucket to which it refers.
-    def get_bucket(url)
+    def get_bucket_name(url)
       begin
         uri = URI.parse(url)
       rescue => e
@@ -107,7 +112,7 @@ module Crackup; module Driver
         raise Crackup::StorageError, "Invalid URL: #{url}: #{e}"
       end
       
-      unless uri.path =~ /^\/(?:.+?)\/(.+?)\/?$/
+      unless uri.path =~ /^\/(?:.+?)\/(.+)\/?$/
         raise Crackup::StorageError, "Invalid URL: #{url}: invalid key"
       end
       
@@ -116,7 +121,10 @@ module Crackup; module Driver
     
     # Uploads the file at _local_filename_ to _url_.
     def put(url, local_filename)
-      @bucket.put_file(local_filename, get_key(url))
+      File.open(local_filename, 'rb') do |file|
+        @bucket[get_key(url)] = file
+      end
+      
       return true
       
     rescue => e

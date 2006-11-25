@@ -1,5 +1,3 @@
-require 'rubygems'
-require 'crackup'
 require 'net/ftp'
 require 'uri'
 
@@ -34,6 +32,8 @@ module Crackup; module Driver
       rescue => e
         raise Crackup::StorageError, "FTP connect failed: #{e}"
       end
+      
+      at_exit { @ftp.close }
       
       begin
         @ftp.login(uri.user.nil? ? 'anonymous' : uri.user, uri.password)

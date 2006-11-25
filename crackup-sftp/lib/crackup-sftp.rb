@@ -1,5 +1,4 @@
 require 'rubygems'
-require 'crackup'
 require 'net/ssh'
 require 'net/sftp'
 require 'uri'
