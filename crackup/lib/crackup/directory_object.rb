@@ -96,15 +96,6 @@ module Crackup
     # Restores the remote copy of this directory to the specified local _path_.
     # The path will be created if it doesn't exist.
     def restore(path)
-      # Create the path if it doesn't exist.
-      unless File.directory?(path)
-        begin
-          FileUtils.mkdir_p(path)
-        rescue => e
-          raise Crackup::Error, "Unable to create local directory: #{path}"
-        end
-      end
-      
       @children.each_value {|child| child.restore(path) }
     end
     

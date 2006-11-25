@@ -50,6 +50,15 @@ module Crackup
 
       Crackup.debug "--> #{filename}"
       
+      # Create the path if it doesn't exist.
+      unless File.directory?(path)
+        begin
+          FileUtils.mkdir_p(path)
+        rescue => e
+          raise Crackup::Error, "Unable to create local directory: #{path}"
+        end
+      end
+      
       # Download the remote file.
       tempfile = Crackup.get_tempfile()
       Crackup.driver.get(@url, tempfile)
