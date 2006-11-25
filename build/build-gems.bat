@@ -15,4 +15,9 @@ cd ..\crackup-sftp
 call rake clobber
 call rake pkg/crackup-sftp-1.0.0.gem
 
+cd ..\crackup-s3
+call rake clobber
+call rake pkg/crackup-s3-1.0.0.gem
+
 cd ..\build
+pause
