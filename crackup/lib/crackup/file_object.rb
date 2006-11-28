@@ -21,7 +21,7 @@ module Crackup
       digest = Digest::SHA256.new
       
       File.open(filename, 'rb') do |file|
-        while buffer = file.read(1048576) do
+        while buffer = file.read(8192) do
           digest << buffer
         end
       end
