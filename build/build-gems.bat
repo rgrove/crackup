@@ -1,27 +1,27 @@
 @echo off
 cd ..\crackup
 call rake clobber
-call rake pkg/crackup-1.0.2.gem
+call rake gem
 
 cd ..\crackup-file
 call rake clobber
-call rake pkg/crackup-file-1.0.2.gem
+call rake gem
 
 cd ..\crackup-ftp
 call rake clobber
-call rake pkg/crackup-ftp-1.0.2.gem
+call rake gem
 
 cd ..\crackup-gmail
 call rake clobber
-call rake pkg/crackup-gmail-1.0.0.gem
+call rake gem
 
 cd ..\crackup-sftp
 call rake clobber
-call rake pkg/crackup-sftp-1.0.0.gem
+call rake gem
 
 cd ..\crackup-s3
 call rake clobber
-call rake pkg/crackup-s3-1.0.0.gem
+call rake gem
 
 cd ..\build
 pause
