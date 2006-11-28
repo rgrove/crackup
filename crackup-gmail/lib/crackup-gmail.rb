@@ -1,5 +1,4 @@
 require 'rubygems'
-require 'crackup'
 require 'gmailer'
 require 'uri'
 
