@@ -1,0 +1,116 @@
+h1. Crackup
+
+Crackup is a pretty simple, pretty secure remote backup solution for folks who want to keep their data securely backed up but aren't particularly concerned about bandwidth usage.
+
+Crackup is ideal for backing up lots of small files, but somewhat less ideal for backing up large files, since any change to a file means the entire file must be transferred. If you need something bandwidth-efficient, try Duplicity.
+
+Backups are compressed and (optionally) encrypted via GnuPG and can be transferred to the remote location over a variety of protocols, including FTP. Additional storage drivers can easily be written in Ruby.
+
+*Note:* Crackup is no longer actively maintained. Feel free to use it and modify it to meet your needs, but please don't expect support.
+
+h2. Requirements
+
+* Ruby 1.8.4+
+* GnuPG 1.4.2+ (if you want to encrypt your backups)
+
+h2. Download/Install
+
+The latest version of Crackup is available via RubyGems: 
+
+<pre>
+gem install crackup
+</pre>
+
+h2. Usage
+
+h3. crackup
+
+<pre>
+crackup -t <url> [-p <pass>] [-x <file>] [-v] [<file|dir> ...]
+
+  -p, --passphrase <pass>  Encryption passphrase (if not specified, no
+                           encryption will be used)
+  -t, --to <url>           Destination URL (e.g.,
+                           ftp://user:pass@server.com/path)
+  -v, --verbose            Verbose output
+  -x, --exclude <file>     Exclude files and directories whose names match the
+                           list in the specified file
+  -h, --help               Display usage information (this message)
+      --version            Display version information
+</pre>
+
+h3. crackup-restore
+
+<pre>
+crackup-restore -f <url> -t <path> [-p <pass>] [-v] [<file|dir> ...]
+crackup-restore -f <url> -l [-p <pass>] [-v]
+
+  -f, --from <url>         Remote URL to restore from (e.g.,
+                           ftp://user:pass@server.com/path)
+  -l, --list               List all files at the remote location
+  -p, --passphrase <pass>  Encryption passphrase (if not specified, no
+                           encryption will be used)
+  -t, --to <path>          Destination root directory for the restored files
+  -v, --verbose            Verbose output
+  -h, --help               Display usage information (this message)
+      --version            Display version information
+</pre>
+
+h2. Examples
+
+h3. crackup
+
+h4. Create or update a local backup of your home directory
+
+<pre>
+crackup -t /backups/home ~/
+</pre>
+
+h4. Create or update an encrypted FTP backup of your home directory
+
+<pre>
+crackup -t ftp://user:pass@example.com/backups/home -p passphrase ~/
+</pre>
+
+h4. Create or update a backup of several directories and files to an SMB share
+
+<pre>
+crackup -t //smbhost/backups/example /etc /usr/local/etc ~/*.rb
+</pre>
+
+h3. crackup-restore
+
+h4. Restore a local backup to your home directory
+
+<pre>
+crackup-restore -f /backups/home -t ~/
+</pre>
+
+h4. Restore an encrypted FTP backup to a temporary directory
+
+<pre>
+crackup-restore -f ftp://user:pass@example.com/backups/home -t /tmp/restore -p passphrase
+</pre>
+
+h4. Restore only the /etc and /usr/local/etc directories from an SMB backup to a temporary directory
+
+<pre>
+crackup-restore -f //smbhost/backups/example -t /tmp/restore /etc /usr/local/etc
+</pre>
+
+h4. Restore only *.rb files from an SMB backup to a temporary directory
+
+<pre>
+crackup-restore -f //smbhost/backups/example -t /tmp/restore *.rb
+</pre>
+
+h4. Display a list of all files and directories contained in the specified local backup
+
+<pre>
+crackup-restore -f /backups/home -l
+</pre>
+
+h2. Copyright
+
+Copyright (c) 2006 "Ryan Grove":mailto:ryan@wonko.com. All rights reserved.
+Crackup is free open source software distributed under the terms of the New BSD License.
