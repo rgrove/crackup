@@ -110,6 +110,62 @@ h4. Display a list of all files and directories contained in the specified local
 crackup-restore -f /backups/home -l
 </pre>
 
+h2. FAQ
+
+h3. How secure is Crackup?
+
+Pretty secure if you provide a passphrase; not at all secure if you don't. If you provide a passphrase when creating a backup, Crackup uses GnuPG to encrypt both the file index and all the files themselves using a 256-bit AES cipher before transferring them to the remote location.
+
+At the remote location, Crackup stores the encrypted index as a @.crackup_index@ file and stores each backed up file as a bzip2-compressed and encrypted @crackup_<hash>@ file, where @<hash>@ is an SHA256 hash of the file's original path. While this structure doesn't reveal actual filenames or directory structures, it does reveal the total number of files backed up, as well as the size of each file after compression and encryption.
+
+Crackup assumes that the local system (the one you're backing up from) is secure, and that the remote system (the one you're backing up to) is not. Operations on the local machine may store information such as filenames and passphrases in unsecure memory; in particular, the passphrase is passed to GnuPG via a pipe in a system call (and is provided to Crackup itself as a command-line parameter), so it may end up in cleartext in your shell history or a system log file.
+
+h3. How reliable is Crackup?
+
+Pretty reliable, but not bulletproof. Crackup is intended to provide a very simple means of backing up and restoring small to medium-sized files with a minimum of effort. I make every effort to ensure that Crackup is as bug-free as possible, but there's always a chance that I made a horrible mistake somewhere or failed to anticipate something that could result in data loss.
+
+In short, if losing your files would endanger someone's life, cost you money, or get you fired, you should probably back them up with something other than Crackup. On the other hand, if losing your files would just make you sad and be an inconvenience, Crackup is probably a safe choice.
+
+h3. How bandwidth-efficient is Crackup?
+
+It's not a hog, but it's not as efficient as @rsync@. When backing up or restoring a file, Crackup must transfer the entire file to or from the remote location, even if only a tiny portion of the file has changed. In this respect, Crackup is less efficient than @rsync@, which is able to save bandwidth by transferring only the differences between local and remote files (at the expense of requiring you to be able to run an instance of @rsync@ on the remote machine).
+
+In addition, Crackup stores its file index at the remote location, so the entire index must be downloaded at the beginning of any backup or restore session and then (in the case of a backup that results in changes) uploaded again at the end of the session. The index format is fairly compact (especially when compressed), but this will still result in slightly more bandwidth usage than some other backup tools.
+
+h3. Is it possible to restore backups without crackup-restore?
+
+Yes, although it might be a little tedious unless you write a script to help you. The @.crackup_index@ file stored at the remote location is simply a Hash of Ruby objects serialized to disk via Ruby's "Marshal":http://www.ruby-doc.org/core/classes/Marshal.html library. The binary format used by Marshal is described at the "RubySpec wiki":http://www.headius.com/rubyspec/index.php/Marshaling.
+
+If encryption is used, all files at the remote location (including the index) are compressed using bzip2 compression and encrypted using GnuPG. GnuPG can uncompress and decrypt them if the proper passphrase is provided. If encryption is not used, the files (including the index) are compressed using gzip compression and can be uncompressed using the @gunzip@ utility or any other decompression utility that supports gzip.
+
+Once the index file is uncompressed (and decrypted, if necessary), you can manipulate it using a simple Ruby program and the Crackup library:
+
+<pre>
+#!/usr/bin/env ruby
+require 'crackup'
+
+# Load the Crackup index file.
+index = File.open('.crackup_index', 'rb') {|file| Marshal.load(file) }
+
+# Print the names of the files and directories in the index.
+puts Crackup::get_list(index)
+
+# Restore everything to the /tmp/restore directory.
+index.each_value {|item| item.restore('/tmp/restore') }
+</pre>
+
+Consult the RDoc documentation installed with the Crackup gem for details on the Crackup library's API.
+
+If you don't have Ruby or if you've somehow lost your copy of Crackup, can't download it again for some reason, and therefore can't read the index file, you can still restore the contents of your files by decrypting them or decompressing them manually. Unfortunately, without the index, you won't be able to restore the actual pathnames of any of the files.
+
+h3. Where did the name "Crackup" come from?
+
+It originally stood for "Crappy Remote Backup", but by the time Crackup was released, it wasn't very crappy anymore, so the C doesn't really mean anything now. Feel free to make something up.
+
+h3. Does Crackup work in Windows?
+
+Yep. You can even use Windows-style paths with drive letters, backslashes, etc. Windows-style UNC paths will work as well.
+
 h2. Copyright
 
 Copyright (c) 2006 "Ryan Grove":mailto:ryan@wonko.com. All rights reserved.
